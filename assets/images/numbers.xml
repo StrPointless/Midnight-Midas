@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="numbers.png">
+	<!-- Created with Adobe Animate version 21.0.6.41649 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="Number0000" x="0" y="0" width="241" height="309"/>
+	<SubTexture name="Number0001" x="241" y="0" width="241" height="309"/>
+	<SubTexture name="Number0002" x="482" y="0" width="241" height="309"/>
+	<SubTexture name="Number0003" x="723" y="0" width="241" height="309"/>
+	<SubTexture name="Number0004" x="0" y="309" width="241" height="309"/>
+	<SubTexture name="Number0005" x="241" y="309" width="241" height="309"/>
+	<SubTexture name="Number0006" x="482" y="309" width="241" height="309"/>
+	<SubTexture name="Number0007" x="723" y="309" width="241" height="309"/>
+	<SubTexture name="Number0008" x="0" y="618" width="241" height="309"/>
+	<SubTexture name="Number0009" x="241" y="618" width="241" height="309"/>
+</TextureAtlas>

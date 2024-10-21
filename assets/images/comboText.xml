@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="comboText.png">
+	<!-- Created with Adobe Animate version 21.0.6.41649 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="comboText0000" x="0" y="0" width="673" height="455"/>
+	<SubTexture name="comboText0001" x="0" y="0" width="673" height="455"/>
+	<SubTexture name="comboText0002" x="0" y="455" width="673" height="455"/>
+	<SubTexture name="comboText0003" x="0" y="455" width="673" height="455"/>
+</TextureAtlas>

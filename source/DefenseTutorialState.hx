@@ -43,6 +43,8 @@ class DefenseTutorialState extends FlxState
 	{
 		super.create();
 
+		FlxG.camera.bgColor = FlxColor.BLACK;
+
 		image1 = new ModifiedFlxSprite(0, 0);
 		image1.loadGraphic("assets/images/defenseSS3.png");
 		image1.antialiasing = true;

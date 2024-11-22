@@ -9,8 +9,8 @@ import openfl.Assets;
 
 class Player extends ModifiedFlxSprite
 {
-	public var _sprintSpeed:Float = 600;
-	public var _normalSpeed:Float = 500;
+	public var _sprintSpeed:Float = 800;
+	public var _normalSpeed:Float = 750;
 	public var _curSpeed:Float = 250;
 	public var _drag:Float;
 	public var _isSprinting:Bool = false;
@@ -103,7 +103,7 @@ class Player extends ModifiedFlxSprite
 				right = FlxG.keys.anyPressed([RIGHT, D]);
 				down = FlxG.keys.anyPressed([DOWN, S]);
 				jumped = FlxG.keys.justPressed.SPACE;
-				if (gameRef.daFocusAmount >= 400)
+				if (gameRef.daFocusAmount >= 10)
 				{
 					_preppingAttack = FlxG.mouse.pressedRight;
 					focus = FlxG.mouse.pressedRight;
@@ -167,6 +167,11 @@ class Player extends ModifiedFlxSprite
 				flipX = false;
 			}
 
+			if (attacking && _isGrounded)
+			{
+				velocity.x = 0;
+			}
+
 			if (jumped && _curJumpCount > 0)
 			{
 				_jumping = true;
@@ -185,8 +190,8 @@ class Player extends ModifiedFlxSprite
 				resetJumps();
 			if (_jumping)
 			{
-				acceleration.y = -100;
-				velocity.y = -500;
+				acceleration.y = -250;
+				velocity.y = -775;
 				_jumpTimer++;
 			}
 			if (!_jumping && !_fastFall)
@@ -197,10 +202,6 @@ class Player extends ModifiedFlxSprite
 			if (_jumpTimer > 1 && _jumping)
 			{
 				_jumping = false;
-			}
-			if (!_isGrounded && FlxG.keys.anyJustPressed([DOWN, S]))
-			{
-				velocity.y = 0;
 			}
 			if (!_isGrounded && !_jumping)
 				_fastFall = down
@@ -213,7 +214,9 @@ class Player extends ModifiedFlxSprite
 				killBoostTmr = 0;
 				_jumpTimer = 0;
 				_jumping = false;
-				setGravity(false, 2400, 2200);
+				acceleration.y += 50;
+				velocity.y += 50;
+				setGravity(false, 2800, 2200);
 			}
 			if (_justGrounded != _isGrounded)
 			{
@@ -238,6 +241,10 @@ class Player extends ModifiedFlxSprite
 			{
 				acceleration.y = -100 * killBoostModifier;
 				velocity.y = -500 * killBoostModifier;
+				if (!flipX)
+					velocity.x -= 50;
+				if (flipX)
+					velocity.x += 50;
 				killBoostTmr++;
 			}
 			if (killBoostTmr > 0.5 && killBoost)
@@ -287,7 +294,7 @@ class Player extends ModifiedFlxSprite
 			animation.play("prepAttack");
 			attacking = false;
 		}
-		if (left && _isGrounded || right && _isGrounded)
+		if (left && _isGrounded || right && _isGrounded && !attacking)
 		{
 			if (_isSprinting)
 				animation.play("run");
@@ -359,8 +366,8 @@ class Player extends ModifiedFlxSprite
 	{
 		if (reset && _hasGravity)
 		{
-			acceleration.y = 1800;
-			maxVelocity.y = 1400;
+			acceleration.y = 2400;
+			maxVelocity.y = 2000;
 		}
 		else
 		{

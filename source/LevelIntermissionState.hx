@@ -11,13 +11,19 @@ class LevelIntermissionState extends FlxState
 	public var levelText:FlxText;
 	public var levelNumberText:FlxText;
 
+	public var timeText:FlxText;
+
 	public var pressText:FlxText;
 
 	public var levelNumberPosition:Float;
 	public var doneTween:Bool = false;
 
+	public var timer:TimerSubstate;
+
 	public override function create()
 	{
+		GameVariables.paused = true;
+		persistentUpdate = true;
 		FlxG.camera.bgColor = FlxColor.BLACK;
 		super.create();
 
@@ -44,6 +50,24 @@ class LevelIntermissionState extends FlxState
 		pressText.alpha = 0;
 		add(pressText);
 
+		timeText = new FlxText(0, 0, 0, "Game: "
+			+ GameVariables.timeDisplay
+			+ ' || Level '
+			+ GameVariables.levelCount
+			+ ':'
+			+ GameVariables.leveltimeDisplay,
+			12);
+		timeText.fieldHeight = 100;
+		timeText.fieldWidth = 1000;
+		timeText.alignment = CENTER;
+		timeText.screenCenter();
+		timeText.y += 350;
+		timeText.x -= 25;
+
+		timeText.y += 100;
+		timeText.alpha = 0;
+		add(timeText);
+
 		FlxTween.tween(pressText, {y: pressText.y - 100, alpha: 1}, 2, {ease: FlxEase.expoOut, startDelay: 1.1});
 		FlxTween.tween(levelNumberText, {alpha: 1}, 2, {ease: FlxEase.expoOut, startDelay: 1});
 		FlxTween.tween(levelText, {y: levelText.y + 100, alpha: 1}, 2, {
@@ -55,6 +79,7 @@ class LevelIntermissionState extends FlxState
 				addLevelCount();
 			}
 		});
+		FlxTween.tween(timeText, {y: timeText.y - 100, alpha: 0.5}, 2, {ease: FlxEase.expoOut, startDelay: 1.2});
 	}
 
 	public override function update(elapsed:Float)
@@ -74,6 +99,7 @@ class LevelIntermissionState extends FlxState
 			cloneText.alpha = 0.45;
 			FlxTween.tween(cloneText, {'scale.x': 1.5, 'scale.y': 1.5, alpha: 0}, 1, {ease: FlxEase.expoOut});
 			FlxTween.tween(pressText, {y: pressText.y + 100, alpha: 0}, 2, {ease: FlxEase.expoOut, startDelay: 1.1});
+			FlxTween.tween(timeText, {y: timeText.y + 100, alpha: 0}, 2, {ease: FlxEase.expoOut, startDelay: 1});
 			FlxTween.tween(levelNumberText, {alpha: 0}, 2, {ease: FlxEase.expoOut, startDelay: 1});
 			FlxTween.tween(levelText, {y: levelText.y - 100, alpha: 0}, 2, {
 				ease: FlxEase.expoOut,

@@ -5,6 +5,7 @@ import flixel.FlxG;
 import flixel.FlxObject;
 import flixel.FlxSprite;
 import flixel.FlxState;
+import flixel.FlxSubState;
 import flixel.addons.editors.ogmo.FlxOgmo3Loader;
 import flixel.addons.editors.ogmo.FlxOgmoLoader;
 import flixel.graphics.frames.FlxAtlasFrames;
@@ -120,8 +121,14 @@ class PlayState extends FlxState
 	public var curSubtitleField:ModifiedFlxSprite;
 	public var win:Bool = false;
 
+	public var timerSubstate:TimerSubstate;
+
 	override public function create()
 	{
+		GameVariables.leveltimeFames = 0;
+		GameVariables.paused = false;
+		persistentUpdate = true;
+		persistentDraw = true;
 		if (GameVariables.playerHP == 0)
 		{
 			GameVariables.playerHP = 4;
@@ -475,6 +482,9 @@ class PlayState extends FlxState
 
 		openingT = FlxTween.tween(topBar, {y: topBar.y - 500}, 2, {ease: FlxEase.expoOut, startDelay: 1});
 		openingB = FlxTween.tween(bottomBar, {y: bottomBar.y + 500}, 2, {ease: FlxEase.expoOut, startDelay: 1});
+		timerSubstate = new TimerSubstate();
+		timerSubstate.cameras = [camHUD];
+		openSubState(timerSubstate);
 	}
 
 	var xPos:Float = 125;
@@ -489,6 +499,7 @@ class PlayState extends FlxState
 
 		FlxG.watch.addQuick("gameTime", gameTime);
 		FlxG.watch.addQuick("focus", daFocusAmount);
+		// FlxG.watch.addQuick("atan", Math.atan2(player.y, player.x));
 		gameShader.brightness.value[0] = FlxMath.remapToRange(gameTime, 6500, 0, 0, -1);
 		gradient.alpha = FlxMath.remapToRange(gameTime, 6500, 0, 0, 1);
 		if (gameTime > 1)
@@ -532,7 +543,10 @@ class PlayState extends FlxState
 			player._curWallLocation = RIGHT;
 		else
 			player._curWallLocation = NONE;
+
 		super.update(elapsed);
+		FlxG.collide(envObjects, player);
+		// FlxG.collide(darkObjects, player);
 		player._wallSliding = (player.isTouching(RIGHT) && !player._isGrounded || player.isTouching(LEFT) && !player._isGrounded) ? true : false;
 		// trace(player._wallSliding);
 
@@ -541,7 +555,7 @@ class PlayState extends FlxState
 		if (player.right && !plrDead && !player.focus && levelData.type != "defense")
 			FlxG.camera.angle = FlxMath.lerp(FlxG.camera.angle, -1, 0.05);
 
-		FlxG.camera.follow(camFollow, LOCKON, 0.05);
+		FlxG.camera.follow(camFollow, LOCKON, 0.075);
 		if (!plrDead && !holdCam && levelData.type != "defense" && !player.focus)
 			camFollow.setPosition((!shiftCamera) ? player.x + 300 : player.x - 300, player.y - 50);
 
@@ -565,8 +579,6 @@ class PlayState extends FlxState
 			player.immovable = true;
 			player.setGravity(false, 0, 0);
 		}
-		FlxG.collide(envObjects, player);
-		FlxG.collide(darkObjects, player);
 		// FlxG.collide(walls, player);
 
 		if (gameTime < 3000)
@@ -625,7 +637,7 @@ class PlayState extends FlxState
 				FlxG.camera.angle = -2;
 				if (gameTime + 500 < 6500)
 					gameTime += 500;
-				if (GameVariables.levelCount > 1)
+				if (GameVariables.levelCount > 0)
 					daFocusAmount = Std.int(daFocusAmount / 1.5);
 				FlxTween.num(1, 0, 1, {ease: FlxEase.expoOut}, function(flt:Float)
 				{
@@ -650,7 +662,7 @@ class PlayState extends FlxState
 			if (!i.isBoss && FlxG.mouse.overlaps(i) && FlxG.mouse.pressedRight && FlxG.mouse.justPressed && player.focus)
 			{
 				i.death(true);
-				daFocusAmount = 0;
+				daFocusAmount -= 400;
 				player.focus = false;
 			}
 		}
@@ -701,7 +713,7 @@ class PlayState extends FlxState
 		#if debug
 		if (FlxG.keys.justPressed.F5)
 		{
-			FlxG.switchState(new LevelIntermissionState());
+			FlxG.switchState(new LoadingState());
 		}
 		#end
 
@@ -711,7 +723,7 @@ class PlayState extends FlxState
 				nextEnemySpawnTime--;
 			if (nextEnemySpawnTime <= 1 && canSpawnEnemies && enemiesToSpawn > 0)
 			{
-				var newEnm = new DarkEnemy(FlxG.width * (FlxG.random.bool(50) ? -2 : 2), FlxG.height * (FlxG.random.bool(50) ? 0 : 2));
+				var newEnm = new DarkEnemy(FlxG.width * (FlxG.random.bool(50) ? -2 : 2), FlxG.height * (FlxG.random.bool(50) ? 1 : -1));
 				newEnm.player = player;
 				defenseEnemies.add(newEnm);
 				nextEnemySpawnTime = FlxG.random.float(10, 80);
@@ -720,7 +732,7 @@ class PlayState extends FlxState
 			if (enemiesToSpawn == 0 && defenseEnemies.length == 0 && canSpawnEnemies)
 			{
 				canSpawnEnemies = false;
-				new FlxTimer().start(2, function(tmr:FlxTimer)
+				new FlxTimer().start(0.5, function(tmr:FlxTimer)
 				{
 					FlxG.camera.shake(0.01, 0.05);
 					FlxG.camera.flash(FlxColor.RED, 0.5);
@@ -796,6 +808,11 @@ class PlayState extends FlxState
 		if (combo >= 50)
 			comboOffset = 10;
 
+		if (plrDead && player.focus)
+		{
+			player.focus = false;
+			FlxG.timeScale = 1;
+		}
 		if (finale && FlxG.timeScale < 1.0 && player._isGrounded)
 		{
 			finale = false;
@@ -813,11 +830,13 @@ class PlayState extends FlxState
 					{
 						if (GameVariables.levelCount == 3)
 						{
-							FlxG.switchState(new MainMenuState());
 							GameVariables.levelCount = 0;
+							GameVariables.incompleteTime = false;
+							GameVariables.timeFames = 0;
+							FlxG.switchState(new MainMenuState());
 						}
 						else
-							FlxG.switchState(new LevelIntermissionState());
+							FlxG.switchState(new LoadingState());
 					}
 				});
 			});
@@ -843,7 +862,9 @@ class PlayState extends FlxState
 
 		if (FlxG.keys.justPressed.ESCAPE)
 		{
+			persistentUpdate = false;
 			FlxG.sound.music.pause();
+			GameVariables.paused = true;
 			var substate = new PauseSubstate();
 			substate.cameras = [camHUD];
 			substate.closeCallback = substateClosed;
@@ -899,6 +920,7 @@ class PlayState extends FlxState
 
 	public function endLevelSequence()
 	{
+		GameVariables.paused = true;
 		win = true;
 		trace("GAME");
 		FlxTween.tween(uiBar, {alpha: 0}, 1);
@@ -916,7 +938,7 @@ class PlayState extends FlxState
 			ease: FlxEase.expoOut,
 			onComplete: function(twn:FlxTween)
 			{
-				FlxG.switchState(new LevelIntermissionState());
+				FlxG.switchState(new LoadingState());
 			}
 		});
 	}
@@ -990,6 +1012,7 @@ class PlayState extends FlxState
 
 	public function endFinale()
 	{
+		GameVariables.paused = true;
 		cameraAngle = 0;
 		bgDim.alpha = 1;
 

@@ -26,7 +26,7 @@ import openfl.filters.ShaderFilter;
 
 using StringTools;
 
-class MainMenuState extends FlxState
+class SettingsState extends FlxState
 {
 	public var camGame:FlxCamera;
 	public var camHUD:FlxCamera;
@@ -130,6 +130,14 @@ class MainMenuState extends FlxState
     public var playText:FlxText;
 	public var settingsText:FlxText;
     public var logo:ModifiedFlxSprite;
+    
+    public var titleText:FlxText;
+    public var optionMenus:Array<String> = ["Gameplay", "Speedrun", "Controls"];
+    public var optionGroup:FlxTypedGroup<FlxText>;
+
+    public var gameplayOptions:Array<SettingsMenuOption> = [];
+
+    public var curSelected:Int = 0;
 
     public var playedSoundOnPlay:Bool = false;
     public var playedSoundOnLevels:Bool = false;
@@ -194,8 +202,7 @@ class MainMenuState extends FlxState
 
 		for (i in daStuff.objects)
 		{
-			if (i.graphicPath != "playerRef" && i.graphicPath != "camShiftEvent" && i.graphicPath != "black" && i.graphicPath != "camStopEvent"
-				&& i.graphicPath != "levelEndEvent" && i.graphicPath != "defenseMiddle" && i.graphicPath != "subtitlePart")
+			if (i.graphicPath != "defenseMiddle")
 			{
 				var sprite = new ModifiedFlxSprite(i.position[0] + levelOffset.x, i.position[1] + levelOffset.y);
 				sprite.loadGraphic(i.graphicPath);
@@ -224,79 +231,6 @@ class MainMenuState extends FlxState
 				else
 					envObjects.add(sprite);
 			}
-			else if (i.graphicPath == "camShiftEvent")
-			{
-				var sprite = new ModifiedFlxSprite(i.position[0] + levelOffset.x, i.position[1] + levelOffset.y);
-				sprite.makeGraphic(100, 100, FlxColor.BLUE);
-				sprite.scale.set(i.scale[0], i.scale[1]);
-				sprite.setColorValues(0, 1, 1);
-				sprite.updateHitbox();
-				sprite.flipX = i.xFlip;
-				sprite.flipY = i.yFlip;
-				sprite.ogDataCopy = i;
-				sprite.spriteTag = "camEvent";
-				sprite.ogPath = i.graphicPath;
-				sprite.antialiasing = true;
-				sprite.customColor.brightness = i.tint;
-				sprite.solid = false;
-				sprite.immovable = true;
-				sprite.alpha = 0;
-				envObjects.add(sprite);
-			}
-			else if (i.graphicPath == "black")
-			{
-				var sprite = new ModifiedFlxSprite(i.position[0] + levelOffset.x, i.position[1] + levelOffset.y);
-				sprite.makeGraphic(100, 100, FlxColor.BLACK);
-				sprite.scale.set(i.scale[0], i.scale[1]);
-				sprite.setColorValues(0, 1, 1);
-				sprite.updateHitbox();
-				sprite.flipX = i.xFlip;
-				sprite.ogDataCopy = i;
-				sprite.flipY = i.yFlip;
-				sprite.ogPath = i.graphicPath;
-				sprite.antialiasing = true;
-				sprite.customColor.brightness = i.tint;
-				sprite.solid = false;
-				sprite.immovable = true;
-				envObjects.add(sprite);
-			}
-			else if (i.graphicPath == "camStopEvent")
-			{
-				var sprite = new ModifiedFlxSprite(i.position[0] + levelOffset.x, i.position[1] + levelOffset.y);
-				sprite.makeGraphic(100, 100, FlxColor.YELLOW);
-				sprite.scale.set(i.scale[0], i.scale[1]);
-				sprite.setColorValues(0, 1, 1);
-				sprite.updateHitbox();
-				sprite.flipX = i.xFlip;
-				sprite.ogDataCopy = i;
-				sprite.flipY = i.yFlip;
-				sprite.ogPath = i.graphicPath;
-				sprite.antialiasing = true;
-				sprite.customColor.brightness = i.tint;
-				sprite.solid = false;
-				sprite.immovable = true;
-				sprite.alpha = 0;
-				envObjects.add(sprite);
-			}
-			else if (i.graphicPath == "levelEndEvent" || i.graphicPath == "subtitlePart")
-			{
-				var sprite = new ModifiedFlxSprite(i.position[0] + levelOffset.x, i.position[1] + levelOffset.y);
-				sprite.makeGraphic(100, 100, FlxColor.GREEN);
-				sprite.scale.set(i.scale[0], i.scale[1]);
-				sprite.setColorValues(0, 1, 1);
-				sprite.updateHitbox();
-				sprite.flipX = i.xFlip;
-				sprite.ogDataCopy = i;
-				sprite.flipY = i.yFlip;
-				sprite.subText = i.text;
-				sprite.ogPath = i.graphicPath;
-				sprite.antialiasing = true;
-				sprite.customColor.brightness = i.tint;
-				sprite.solid = false;
-				sprite.immovable = true;
-				sprite.alpha = 0;
-				envObjects.add(sprite);
-			}
             else if(i.graphicPath == "defenseMiddle" )
             {
                 var sprite = new ModifiedFlxSprite(i.position[0] + levelOffset.x, i.position[1] + levelOffset.y);
@@ -323,64 +257,29 @@ class MainMenuState extends FlxState
 
 		FlxG.camera.zoom = 0.75;
 		FlxG.camera.setScrollBounds(null, null, null, null);
-		if (FlxG.sound.music != null)
-			FlxG.sound.music.stop();
 
-        FlxG.sound.playMusic("assets/music/stageplayloop1.ogg", 0);
-		FlxG.sound.music.fadeIn(1, 0, 1);
+        titleText = new FlxText(0,0, "Settings", 64);
+        titleText.cameras = [camHUD];
+        titleText.screenCenter();
+        titleText.y -= 200;
+        add(titleText);
 
-        logo = new ModifiedFlxSprite(0,0);
-        logo.loadGraphic("assets/images/logo.png");
-        logo.cameras = [camHUD];
-        logo.scale.set(0.5, 0.5);
-        logo.screenCenter();
-        logo.y -= 100;
-        add(logo);
+        optionGroup = new FlxTypedGroup<FlxText>();
+        add(optionGroup);
 
-		settingsText = new FlxText(0, 0, 0, "Settings", 56);
-		settingsText.screenCenter();
-		settingsText.cameras = [camHUD];
-		settingsText.scale.set(0.5, 0.5);
-		settingsText.y += 200;
-		settingsText.x += 400;
-		add(settingsText);
 
-        levelsText = new FlxText(0,0,0,"Levels", 56);
-        levelsText.screenCenter();
-        levelsText.scale.set(0.5,0.5);
-        levelsText.cameras = [camHUD];
-        levelsText.y += 200;
-        levelsText.x -= 400;
-		add(levelsText);
+        var ySpacing = 0;
+        for(i in 0...optionMenus.length)
+        {
+            var text = new FlxText(0,0,0, optionMenus[i], 48);
+            text.cameras = [camHUD];
+            text.screenCenter();
+            text.y += ySpacing - 50;
+            text.ID = i;
+            optionGroup.add(text);
+            ySpacing += 100;
+        }
 
-        playText = new FlxText(0,0,0,"Play", 56);
-        playText.screenCenter();
-        playText.cameras = [camHUD];
-        playText.y += 200;
-        playText.x -= 0;
-        add(playText);
-
-		var verText = new FlxText(0, 0, 0, "Version: 0.25 (Speedrunner Patch Patch)", 18);
-		verText.fieldHeight = 100;
-		verText.fieldWidth = 700;
-		verText.alignment = CENTER;
-		verText.cameras = [camHUD];
-		verText.screenCenter();
-		verText.alpha = 0.5;
-		verText.y += 350;
-		add(verText);
-
-		var timeText = new FlxText(0, 0, 0, "Last time: " + GameVariables.timeDisplay, 12);
-		if (GameVariables.incompleteTime)
-			timeText.text += " | INCOMPLETE";
-		timeText.fieldHeight = 100;
-		timeText.fieldWidth = 700;
-		timeText.alignment = CENTER;
-		timeText.cameras = [camHUD];
-		timeText.screenCenter();
-		timeText.alpha = 0.5;
-		timeText.y += 375;
-		add(timeText);
 
         topBar = new FlxSprite().makeGraphic(FlxG.width, Std.int(FlxG.height / 1.5), FlxColor.BLACK);
 		topBar.cameras = [camHUD];
@@ -413,8 +312,8 @@ class MainMenuState extends FlxState
         FlxG.camera.follow(camFollow, LOCKON, 0.05);
 		FlxG.watch.addQuick("gameTime", FlxMath.remapToRange(gameTime, 6500, 0, 0, -1));
 		FlxG.watch.addQuick("focus", daFocusAmount);
-	
-		if (FlxG.sound.music != null)
+
+        if (FlxG.sound.music != null)
 			curMusicTime = FlxG.sound.music.time;
 		gameShader.saturation.value[0] = FlxMath.lerp(gameShader.saturation.value[0], gameSaturationValue, 0.05);
 		gameShader.contrast.value[0] = FlxMath.lerp(gameShader.contrast.value[0], gameContrastValue, 0.05);
@@ -424,94 +323,35 @@ class MainMenuState extends FlxState
 		if (defenseMiddle != null)
 			camFollow.setPosition((FlxG.mouse.screenX / 20), (FlxG.mouse.screenY / 20));
 
-		if (FlxG.keys.justPressed.EIGHT)
-			FlxG.switchState(new LoadingState());
-
-        if(FlxG.mouse.overlaps(playText, camHUD))
-        {
-            playText.scale.set(1.2,1.2);
-            if(!playedSoundOnPlay)
-            {
-                playedSoundOnPlay = true;
-                FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
-            }
-            if(FlxG.mouse.justPressed)
-            {
-                FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
-                FlxG.camera.zoom += 0.1;
-                camHUD.flash(FlxColor.WHITE, 1);
-                FlxG.camera.flash(FlxColor.WHITE, 1, function()
-                {
-                    FlxTween.tween(playText, {alpha: 0}, 1);
-					FlxTween.tween(settingsText, {alpha: 0}, 1);
-                    FlxTween.tween(levelsText, {alpha: 0}, 1);
-                    FlxTween.tween(logo, {alpha: 0}, 1);
-                    camHUD.fade(FlxColor.BLACK, 2, false);
-                    FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
-                        {
-                            FlxG.switchState(new PlayState());
-
-                            
-                        });
-                });
-            }
-        }
-        else
-        {   
-            playedSoundOnPlay = false;
-            playText.scale.set(FlxMath.lerp(playText.scale.x, 1, 0.05), FlxMath.lerp(playText.scale.y, 1, 0.05));
-        }
-        if(FlxG.mouse.overlaps(levelsText, camHUD))
-        {
-            levelsText.scale.set(0.95,0.95);
-            if(!playedSoundOnLevels)
-            {
-                playedSoundOnLevels = true;
-                FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
-            }
-        }
-        else
-        {
-            playedSoundOnLevels = false;
-            levelsText.scale.set(FlxMath.lerp(levelsText.scale.x, 0.75, 0.05), FlxMath.lerp(levelsText.scale.y, 0.75, 0.05));
-        }
-
-		if (FlxG.mouse.overlaps(settingsText, camHUD))
-        {
-			settingsText.scale.set(0.95, 0.95);
-            if(!playedSoundOnCredits)
-            {
-                playedSoundOnCredits = true;
-                FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
-            }
-			if (FlxG.mouse.justPressed)
-			{
-				FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
-				FlxG.camera.zoom += 0.1;
-				camHUD.flash(FlxColor.WHITE, 1);
-				FlxG.camera.flash(FlxColor.WHITE, 1, function()
-				{
-					FlxTween.tween(playText, {alpha: 0}, 1);
-					FlxTween.tween(settingsText, {alpha: 0}, 1);
-					FlxTween.tween(levelsText, {alpha: 0}, 1);
-					FlxTween.tween(logo, {alpha: 0}, 1);
-					camHUD.fade(FlxColor.BLACK, 2, false);
-					FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
-					{
-						FlxG.switchState(new SettingsState());
-					});
-				});
-			}
-        }
-        else
-        {
-            playedSoundOnCredits = false;
-			settingsText.scale.set(FlxMath.lerp(settingsText.scale.x, 0.75, 0.05), FlxMath.lerp(settingsText.scale.y, 0.75, 0.05));
-        }
-
         
         super.update(elapsed);
+
+        optionGroup.forEach(function(txt:FlxText)
+            {
+                if(FlxG.mouse.overlaps(txt, camHUD))
+                {
+                    curSelected = txt.ID;
+                    txt.scale.set(1.1,1.1);
+                    txt.alpha = 1;
+                }
+                else
+                {
+                    txt.scale.set(FlxMath.lerp(txt.scale.x, 1, 0.05),FlxMath.lerp(txt.scale.y, 1, 0.05));
+                    txt.alpha = 0.75;
+                }
+            });
 	}
 
     
+}
+typedef SettingsMenuOption =
+{
+    var name:String;
+    var type:SettingOptionType;
+    var value:Dynamic;
+}
+enum SettingOptionType 
+{
+    STEPPER;
+    BOOL;    
 }

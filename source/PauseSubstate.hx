@@ -54,6 +54,9 @@ class PauseSubstate extends FlxSubState
 			if (FlxG.mouse.justPressed)
 			{
 				close();
+				GameVariables.paused = false;
+				GameVariables.timeFames = 0;
+				FlxG.state.persistentUpdate = true;
 				FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
 			}
 		}
@@ -76,6 +79,10 @@ class PauseSubstate extends FlxSubState
 				this.camera.fade(FlxColor.BLACK, 1);
 				FlxG.camera.fade(FlxColor.BLACK, 1, function()
 				{
+					GameVariables.playerHP = 4;
+					GameVariables.levelCount = 0;
+					GameVariables.timeFames = 0;
+					GameVariables.incompleteTime = true;
 					FlxG.switchState(new MainMenuState());
 				});
 			}

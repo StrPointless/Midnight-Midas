@@ -16,7 +16,7 @@ class DarkEnemy extends ModifiedFlxSprite
 	public var readyToDelete:Bool = false;
 	public var shakeTmr:Int = 0;
 
-	public var speed:Float = 1.5;
+	public var speed:Float = 5;
 	public var originalPostion:FlxPoint;
 	public var spriteType:Int = 0;
 	public var outline:FlxSprite;
@@ -31,11 +31,12 @@ class DarkEnemy extends ModifiedFlxSprite
 	public var playedGoldHit:Bool = false;
 
 	public var slowMoDead:Bool = false;
+	public var stunTimer:Int = 0;
 
-	public function new(x:Float, y:Float, ?boss:Bool = false)
+	public function new(x:Float, y:Float, ?boss:Bool = false, ?player:Player)
 	{
 		super(x, y);
-		speed = speed + FlxG.random.float(-0.1, 3);
+		speed = speed + FlxG.random.float(5, 11);
 
 		spriteType = FlxG.random.int(0, 1);
 
@@ -70,12 +71,32 @@ class DarkEnemy extends ModifiedFlxSprite
 		// makeGraphic(100, 100, FlxColor.CYAN);
 		alpha = 0;
 		FlxTween.tween(this, {alpha: 1}, 0.25);
+		// trace(Math.atan2((player.y - y), (player.x - x)) * 100);
 	}
+
 
 	public override function update(elapsed:Float)
 	{
+		/*
+			if (!dead && stunTimer < 1)
+				angle = (flipX) ? (Math.atan2((player.getGraphicMidpoint().y - getGraphicMidpoint().y),
+					(player.getGraphicMidpoint()
+						.x - getGraphicMidpoint().x)) * 100) : Math.atan2((player.getGraphicMidpoint().y - getGraphicMidpoint().y),
+						(player.getGraphicMidpoint().x - getGraphicMidpoint().x)) * 100
+		 */
 		if (player != null && !dead)
-			setPosition(FlxMath.lerp(x, player.x, (0.005 * speed) * FlxG.timeScale), FlxMath.lerp(y, player.y, (0.005 * speed) * FlxG.timeScale));
+		{
+			if (stunTimer < 1)
+			{
+				if (player.x > x)
+					x += speed * FlxG.timeScale;
+				if (player.x < x)
+					x -= speed * FlxG.timeScale;
+				y = FlxMath.lerp(y, player.y, 0.005 * (speed / 2) * FlxG.timeScale);
+			}
+		}
+		if (stunTimer > 0)
+			stunTimer--;
 		if (!isBoss && player.overlaps(this) && !dead && player.attacking)
 		{
 			death();
@@ -89,9 +110,13 @@ class DarkEnemy extends ModifiedFlxSprite
 				death();
 				player.onBossHurt(true);
 				player._canMove = false;
+				stunTimer = 100;
 			}
 			else
+			{
 				player.onBossHurt();
+				stunTimer = 100;
+			}
 			stunTmr = 30;
 		}
 		if (stunTmr > 0)
@@ -138,9 +163,9 @@ class DarkEnemy extends ModifiedFlxSprite
 		shakeTmr = 100;
 		alpha = 0.45;
 		if (flipX)
-			FlxTween.tween(originalPostion, {x: originalPostion.x + 200}, 1, {ease: FlxEase.expoOut});
+			FlxTween.tween(originalPostion, {x: originalPostion.x + 400}, 1, {ease: FlxEase.expoOut});
 		if (!flipX)
-			FlxTween.tween(originalPostion, {x: originalPostion.x - 200}, 1, {ease: FlxEase.expoOut});
+			FlxTween.tween(originalPostion, {x: originalPostion.x - 400}, 1, {ease: FlxEase.expoOut});
 		animation.play("death" + spriteType);
 		new FlxTimer().start(0.5, function(tmr:FlxTimer)
 		{

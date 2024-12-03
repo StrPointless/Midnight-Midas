@@ -1,0 +1,25 @@
+<vbox width="100%" height="10%">
+    <menubar width="100%" id="bar1">
+        <menu text="File" id="chud">
+            <menuitem text="Save Object Registry" id="saveStuff"/>
+            <menuseperator/>
+            <menuitem text="New Object Registry" shortcutText="Ctrl+N" id="newStuff"/>
+            <menuitem text="Load Object Registry" id="loadStuff"/>
+            <menuseperator/>
+            <menuitem text="New Object" shortcutText="Ctrl+N" id="newObj"/>
+            <menuseperator/>
+            <menuitem text="Exit Editor" id="exitEditorBttn"/>
+        </menu>
+
+        <menu text="Edit">
+
+        </menu>
+        
+        <menu text="View">
+            
+        </menu>
+        <menu text="Hitbox">
+            <menuitem text="New Hitbox" shortcutText="Ctrl+N" id="newHitBoxButton"/>
+        </menu>
+    </menubar>
+</vbox>

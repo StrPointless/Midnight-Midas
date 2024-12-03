@@ -134,12 +134,21 @@ class MainMenuState extends FlxState
     public var playedSoundOnPlay:Bool = false;
     public var playedSoundOnLevels:Bool = false;
     public var playedSoundOnCredits:Bool = false;
+	public var curSelected:Int = 0;
+	public var optionsGroup:Array<FlxText>;
+	public var soundGroup:Array<Bool> = [false, false, false];
+	public var analogTimer:Int = 20;
+	public var holdTimer:Int = 20;
 
 
 	override public function create()
 	{
 		FlxG.sound.cache("assets/music/stageplayloop1.ogg");
 		FlxG.sound.cache("assets/music/stageloopslow1.ogg");
+
+		GameVariables.resetSettings();
+		GameVariables.settings.cc_useKeyboard = true;
+		// GameVariables.settings.cc_useController = true;
 
 		camGame = new FlxCamera();
 		camHUD = new FlxCamera();
@@ -393,7 +402,15 @@ class MainMenuState extends FlxState
 		bottomBar.y += 210;
 		add(bottomBar);
 		
+		optionsGroup = new Array<FlxText>();
 
+
+		levelsText.ID = 0;
+		playText.ID = 1;
+		settingsText.ID = 2;
+		optionsGroup.push(levelsText);
+		optionsGroup.push(playText);
+		optionsGroup.push(settingsText);
 
 		super.create();
 		gameShader = new TestShader();
@@ -410,6 +427,7 @@ class MainMenuState extends FlxState
 
 	override public function update(elapsed:Float)
 	{
+		FlxG.watch.addQuick("curSelect", curSelected);
         FlxG.camera.follow(camFollow, LOCKON, 0.05);
 		FlxG.watch.addQuick("gameTime", FlxMath.remapToRange(gameTime, 6500, 0, 0, -1));
 		FlxG.watch.addQuick("focus", daFocusAmount);
@@ -426,69 +444,145 @@ class MainMenuState extends FlxState
 
 		if (FlxG.keys.justPressed.EIGHT)
 			FlxG.switchState(new LoadingState());
+		if (FlxG.keys.justPressed.NINE)
+			FlxG.switchState(new ObjectEditorState());
+		if (FlxG.keys.justPressed.ONE)
+			FlxG.switchState(new AnimationDebug());
 
-        if(FlxG.mouse.overlaps(playText, camHUD))
-        {
-            playText.scale.set(1.2,1.2);
-            if(!playedSoundOnPlay)
-            {
-                playedSoundOnPlay = true;
-                FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
-            }
-            if(FlxG.mouse.justPressed)
-            {
-                FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
-                FlxG.camera.zoom += 0.1;
-                camHUD.flash(FlxColor.WHITE, 1);
-                FlxG.camera.flash(FlxColor.WHITE, 1, function()
-                {
-                    FlxTween.tween(playText, {alpha: 0}, 1);
+		/*
+			FlxG.camera.flash(FlxColor.WHITE, 1, function()
+				{
+					FlxTween.tween(playText, {alpha: 0}, 1);
 					FlxTween.tween(settingsText, {alpha: 0}, 1);
-                    FlxTween.tween(levelsText, {alpha: 0}, 1);
-                    FlxTween.tween(logo, {alpha: 0}, 1);
-                    camHUD.fade(FlxColor.BLACK, 2, false);
-                    FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
-                        {
-                            FlxG.switchState(new PlayState());
+					FlxTween.tween(levelsText, {alpha: 0}, 1);
+					FlxTween.tween(logo, {alpha: 0}, 1);
+					camHUD.fade(FlxColor.BLACK, 2, false);
+					FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
+					{
+						FlxG.switchState(new PlayState());
 
-                            
-                        });
-                });
-            }
-        }
-        else
-        {   
-            playedSoundOnPlay = false;
-            playText.scale.set(FlxMath.lerp(playText.scale.x, 1, 0.05), FlxMath.lerp(playText.scale.y, 1, 0.05));
-        }
-        if(FlxG.mouse.overlaps(levelsText, camHUD))
-        {
-            levelsText.scale.set(0.95,0.95);
-            if(!playedSoundOnLevels)
-            {
-                playedSoundOnLevels = true;
-                FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
-            }
-        }
-        else
-        {
-            playedSoundOnLevels = false;
-            levelsText.scale.set(FlxMath.lerp(levelsText.scale.x, 0.75, 0.05), FlxMath.lerp(levelsText.scale.y, 0.75, 0.05));
-        }
+					});
+				});
+		 */
 
-		if (FlxG.mouse.overlaps(settingsText, camHUD))
-        {
-			settingsText.scale.set(0.95, 0.95);
-            if(!playedSoundOnCredits)
-            {
-                playedSoundOnCredits = true;
-                FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
-            }
-			if (FlxG.mouse.justPressed)
+		for (i in optionsGroup)
+		{
+			if (FlxG.mouse.visible)
 			{
-				FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
-				FlxG.camera.zoom += 0.1;
-				camHUD.flash(FlxColor.WHITE, 1);
+				if (FlxG.mouse.overlaps(i, camHUD))
+				{
+					i.scale.set(0.95, 0.95);
+					curSelected = i.ID;
+				}
+				else
+				{
+					i.scale.set(FlxMath.lerp(i.scale.x, 0.75, 0.05), FlxMath.lerp(i.scale.y, 0.75, 0.05));
+				}
+				if (FlxG.mouse.justPressed)
+					doSelection();
+			}
+			else
+			{
+				if (i.ID == curSelected)
+					i.scale.set(0.95, 0.95);
+				if (i.ID != curSelected)
+					i.scale.set(FlxMath.lerp(i.scale.x, 0.75, 0.05), FlxMath.lerp(i.scale.y, 0.75, 0.05));
+			}
+		}
+		super.update(elapsed);
+		if (FlxG.mouse.deltaScreenX != 0 || FlxG.mouse.deltaScreenY != 0)
+			FlxG.mouse.visible = true;
+		if (FlxG.keys.anyJustPressed([ANY]) || GameVariables.settings.cc_useController && FlxG.gamepads.lastActive.anyJustPressed([ANY]))
+			FlxG.mouse.visible = false;
+
+		if (FlxG.keys.anyJustPressed([LEFT, A])
+			|| GameVariables.settings.cc_useController
+			&& FlxG.gamepads.lastActive.justPressed.DPAD_LEFT)
+			changeSelection(-1);
+		if (FlxG.keys.anyJustPressed([RIGHT, D])
+			|| GameVariables.settings.cc_useController
+			&& FlxG.gamepads.lastActive.justPressed.DPAD_RIGHT)
+			changeSelection(1);
+
+		if (GameVariables.settings.cc_useController && FlxG.gamepads.lastActive.getXAxis(LEFT_ANALOG_STICK) < -0.5)
+		{
+			analogTimer--;
+			if (analogTimer < 0)
+			{
+				analogTimer = 20;
+				changeSelection(-1);
+			}
+		}
+		if (GameVariables.settings.cc_useController && FlxG.gamepads.lastActive.getXAxis(LEFT_ANALOG_STICK) > 0.5)
+		{
+			analogTimer--;
+			if (analogTimer < 0)
+			{
+				analogTimer = 20;
+				changeSelection(1);
+			}
+		}
+		if (GameVariables.settings.cc_useController
+			&& FlxG.gamepads.lastActive.getXAxis(LEFT_ANALOG_STICK) < 0.5
+			&& GameVariables.settings.cc_useController
+			&& FlxG.gamepads.lastActive.getXAxis(LEFT_ANALOG_STICK) > -0.5)
+			analogTimer = -1;
+
+		if (FlxG.keys.justPressed.ENTER)
+			doSelection();
+
+		if (GameVariables.settings.cc_useController
+			&& FlxG.gamepads.lastActive.justPressed.A
+			|| GameVariables.settings.cc_useController
+			&& FlxG.gamepads.lastActive.justPressed.START)
+			doSelection();
+	}
+
+	public function changeSelection(sec:Int = 0)
+	{
+		FlxG.sound.play("assets/sounds/scroll.ogg", 0.5);
+		curSelected += sec;
+		if (curSelected > 2)
+			curSelected = 0;
+		if (curSelected < 0)
+			curSelected = 2;
+
+		optionsGroup[curSelected].scale.set(0.95, 0.95);
+	}
+	public function doSelection()
+	{
+		switch (curSelected)
+		{
+			case 0:
+				FlxG.camera.flash(FlxColor.WHITE, 1, function()
+				{
+					FlxTween.tween(playText, {alpha: 0}, 1);
+					FlxTween.tween(settingsText, {alpha: 0}, 1);
+					FlxTween.tween(levelsText, {alpha: 0}, 1);
+					FlxTween.tween(logo, {alpha: 0}, 1);
+					camHUD.fade(FlxColor.BLACK, 2, false);
+					FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
+					{
+						trace("nah");
+					});
+				});
+				camHUD.flash(FlxColor.WHITE);
+			case 1:
+				FlxG.camera.flash(FlxColor.WHITE, 1, function()
+				{
+					FlxTween.tween(playText, {alpha: 0}, 1);
+					FlxTween.tween(settingsText, {alpha: 0}, 1);
+					FlxTween.tween(levelsText, {alpha: 0}, 1);
+					FlxTween.tween(logo, {alpha: 0}, 1);
+					camHUD.fade(FlxColor.BLACK, 2, false);
+					FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
+					{
+						FlxG.switchState(new PlayState());
+	
+					});
+				});
+				camHUD.flash(FlxColor.WHITE);
+			case 2:
 				FlxG.camera.flash(FlxColor.WHITE, 1, function()
 				{
 					FlxTween.tween(playText, {alpha: 0}, 1);
@@ -499,19 +593,10 @@ class MainMenuState extends FlxState
 					FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
 					{
 						FlxG.switchState(new SettingsState());
+
 					});
 				});
-			}
-        }
-        else
-        {
-            playedSoundOnCredits = false;
-			settingsText.scale.set(FlxMath.lerp(settingsText.scale.x, 0.75, 0.05), FlxMath.lerp(settingsText.scale.y, 0.75, 0.05));
-        }
-
-        
-        super.update(elapsed);
+				camHUD.flash(FlxColor.WHITE);
+		}
 	}
-
-    
 }

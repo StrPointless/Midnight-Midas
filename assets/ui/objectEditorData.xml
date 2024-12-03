@@ -1,0 +1,25 @@
+<vbox width="25%" height="75%">
+    <tabview id="tv1" width="300" height="600">
+            <vbox text="Object">
+                <section-header text="Object Options" />
+                <label text="Image Path:" verticalAlign="center" />
+                <textfield placeholder="images/objectPath" id="imaePathField"/>
+            </vbox>
+            <vbox text="Hitbox">
+                <section-header text="Hitbox Options" />
+
+                <label text="Selected Hitbox" verticalAlign="center" />
+                <number-stepper pos="1" step="1" min="1" max="999" id="h_curHitboxCount"/>
+                <spacer height="50"/>
+                <label text="Width" verticalAlign="center" />
+                <number-stepper pos="200" step="10" min="10" max="3000" id="h_width"/>
+                <label text="Height" verticalAlign="center" />
+                <number-stepper pos="200" step="10" min="10" max="3000" id="h_height"/>
+                <label text="X Position" verticalAlign="center" />
+                <number-stepper pos="0" step="1" min="-9999" max="9999" id="h_xPos"/>
+                <label text="Y Position" verticalAlign="center" />
+                <number-stepper pos="0" step="1" min="-9999" max="9999" id="h_yPos"/>
+                
+            </vbox>
+    </tabview>
+</vbox>

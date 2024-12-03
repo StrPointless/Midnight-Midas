@@ -54,6 +54,6 @@ class TimerSubstate extends FlxSubState
 				+ (GameVariables.leveltimeFames % 60);
 			levelTimerDisplay.text = GameVariables.leveltimeDisplay;
 		}
-		trace(GameVariables.timeDisplay);
+		// trace(GameVariables.timeDisplay);
 	}
 }

@@ -15,6 +15,10 @@ class LoadingState extends FlxState
 	public var tipText:FlxText;
 	public var loadingText:FlxText;
 	public var canStart:Bool = false;
+	public var bg:FlxSprite;
+
+	public var topBlackBar:FlxSprite;
+	public var bottomBlackBar:FlxSprite;
 
 	public override function create()
 	{
@@ -23,7 +27,28 @@ class LoadingState extends FlxState
 		var blackBG = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 		blackBG.screenCenter();
 		blackBG.scrollFactor.set();
-		add(blackBG);
+		// add(blackBG);
+
+		bg = new FlxSprite().loadGraphic("assets/images/loadingScreen/art/art0.png");
+		bg.screenCenter();
+		// bg.scrollFactor.set();
+		bg.scale.set(1.15, 1.15);
+		add(bg);
+
+		topBlackBar = new FlxSprite().makeGraphic(1280, 500, FlxColor.BLACK);
+		topBlackBar.scrollFactor.set();
+		topBlackBar.screenCenter();
+		topBlackBar.y -= 300;
+		add(topBlackBar);
+
+		bottomBlackBar = new FlxSprite().makeGraphic(1280, 500, FlxColor.BLACK);
+		bottomBlackBar.scrollFactor.set();
+		bottomBlackBar.screenCenter();
+		bottomBlackBar.y += 200;
+		add(bottomBlackBar);
+
+		FlxTween.tween(topBlackBar, {y: topBlackBar.y - 200}, 2, {ease: FlxEase.expoOut, startDelay: 0.5});
+		FlxTween.tween(bottomBlackBar, {y: bottomBlackBar.y + 300}, 2, {ease: FlxEase.expoOut, startDelay: 0.5});
 
 		icon = new FlxSprite();
 		icon.frames = FlxAtlasFrames.fromSparrow(Assets.getBitmapData("assets/images/loadingScreen/character.png"),
@@ -31,6 +56,7 @@ class LoadingState extends FlxState
 
 		icon.animation.addByPrefix("idle", "loadingloop", 24, true);
 		icon.animation.play("idle");
+		icon.scrollFactor.set();
 		icon.screenCenter();
 		icon.scale.set(0.25, 0.25);
 		icon.antialiasing = true;
@@ -41,6 +67,7 @@ class LoadingState extends FlxState
 		tipText = new FlxText(0, 0, 0, "-" + GameVariables.loadingScreenTips[FlxG.random.int(0, GameVariables.loadingScreenTips.length - 1)], 18);
 		tipText.fieldWidth = 1000;
 		tipText.fieldHeight = 200;
+		tipText.scrollFactor.set();
 		tipText.screenCenter();
 		tipText.alignment = LEFT;
 		tipText.y += 400;
@@ -48,6 +75,7 @@ class LoadingState extends FlxState
 		add(tipText);
 
 		loadingText = new FlxText(0, 0, 0, "loading...", 16);
+		loadingText.scrollFactor.set();
 		loadingText.screenCenter();
 		loadingText.x = tipText.x + 1100;
 		loadingText.y = tipText.y;
@@ -81,6 +109,8 @@ class LoadingState extends FlxState
 				startTwn.percent = 1;
 			FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
 			FlxG.camera.flash(FlxColor.WHITE, 1);
+			FlxTween.tween(topBlackBar, {y: topBlackBar.y + 200}, 1, {ease: FlxEase.expoOut});
+			FlxTween.tween(bottomBlackBar, {y: bottomBlackBar.y - 300}, 1, {ease: FlxEase.expoOut});
 			FlxTween.tween(tipText, {y: tipText.y + 100, alpha: 0}, 1, {
 				ease: FlxEase.expoIn,
 				onComplete: function(twn:FlxTween)
@@ -92,6 +122,7 @@ class LoadingState extends FlxState
 				}
 			});
 		}
+		FlxG.camera.scroll.set((FlxG.mouse.screenX / 20), (FlxG.mouse.screenY / 20));
 		super.update(elapsed);
 	}
 
@@ -109,7 +140,7 @@ class LoadingState extends FlxState
 			tipText.size = 24;
 			tipText.x += 100;
 		});
-		startTwn = FlxTween.tween(tipText, {y: tipText.y - 50, alpha: 1}, 1, {
+		startTwn = FlxTween.tween(tipText, {y: tipText.y - 15, alpha: 1}, 1, {
 			ease: FlxEase.expoOut,
 			startDelay: 1,
 			onComplete: function(twn:FlxTween)

@@ -123,6 +123,8 @@ class PlayState extends FlxState
 
 	public var timerSubstate:TimerSubstate;
 
+	public var controllerCursor:VitrualCursor;
+
 	override public function create()
 	{
 		GameVariables.leveltimeFames = 0;
@@ -396,6 +398,7 @@ class PlayState extends FlxState
 		uiBar.alpha = 0;
 		FlxTween.tween(uiBar, {alpha: 1}, 2, {startDelay: 1});
 
+
 		goldGroup = new Array<ModifiedFlxSprite>();
 		for (i in 0...4)
 		{
@@ -485,30 +488,50 @@ class PlayState extends FlxState
 		timerSubstate = new TimerSubstate();
 		timerSubstate.cameras = [camHUD];
 		openSubState(timerSubstate);
+		if (GameVariables.settings.cc_useController)
+		{
+			controllerCursor = new VitrualCursor(0, 0);
+			// controllerCursor.cameras = [camHUD];
+			controllerCursor.scrollFactor.set();
+			controllerCursor.screenCenter();
+			add(controllerCursor);
+		}
 	}
 
 	var xPos:Float = 125;
 
 	override public function update(elapsed:Float)
 	{
+		if (FlxG.keys.justPressed.FOUR)
+			FlxG.bitmapLog.viewCache();
 		if (daFocusAmount <= 400)
 			daFocusAmount++;
 
 		focusAmount = FlxMath.remapToRange(daFocusAmount, 400, 0, 2, 0);
 		focusBar.value = FlxMath.lerp(focusBar.value, focusAmount, 0.05);
 
-		FlxG.watch.addQuick("gameTime", gameTime);
-		FlxG.watch.addQuick("focus", daFocusAmount);
+		// FlxG.watch.addQuick("gameTime", gameTime);
+		// FlxG.watch.addQuick("focus", daFocusAmount);
 		// FlxG.watch.addQuick("atan", Math.atan2(player.y, player.x));
 		gameShader.brightness.value[0] = FlxMath.remapToRange(gameTime, 6500, 0, 0, -1);
+		gameShader.saturation.value[0] = FlxMath.lerp(gameShader.saturation.value[0], gameSaturationValue, 0.05);
+		gameShader.contrast.value[0] = FlxMath.lerp(gameShader.contrast.value[0], gameContrastValue, 0.05);
 		gradient.alpha = FlxMath.remapToRange(gameTime, 6500, 0, 0, 1);
+		if (GameVariables.settings.cc_useController && player.focus)
+		{
+			controllerCursor.alpha = 1;
+		}
+		if (GameVariables.settings.cc_useController && !player.focus)
+		{
+			controllerCursor.alpha = FlxMath.lerp(controllerCursor.alpha, 0, 0.05);
+			controllerCursor.setPosition(FlxMath.lerp(controllerCursor.x, player.getScreenPosition().x, 0.05),
+				FlxMath.lerp(controllerCursor.y, player.getScreenPosition().y, 0.05));
+		}
 		if (gameTime > 1)
 			gameTime--;
 
 		if (FlxG.sound.music != null)
 			curMusicTime = FlxG.sound.music.time;
-		gameShader.saturation.value[0] = FlxMath.lerp(gameShader.saturation.value[0], gameSaturationValue, 0.05);
-		gameShader.contrast.value[0] = FlxMath.lerp(gameShader.contrast.value[0], gameContrastValue, 0.05);
 		camGame.angle = FlxMath.lerp(camGame.angle, cameraAngle, 0.05);
 		if (player._isGrounded && !plrDead && !player.focus && levelData.type != "defense")
 			FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.65, 0.05);
@@ -591,7 +614,10 @@ class PlayState extends FlxState
 			gameContrastValue = 1.25;
 			cameraAngle = 2;
 			FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.75, 0.05);
-			camFollow.setPosition((!shiftCamera) ? player.x + 300 + (FlxG.mouse.screenX / 2) : player.x - 300, player.y - 50 + (FlxG.mouse.screenY / 2));
+			if (!GameVariables.settings.cc_useController)
+				camFollow.setPosition((!shiftCamera) ? player.x + 300 + (FlxG.mouse.screenX / 2) : player.x - 300, player.y - 50 + (FlxG.mouse.screenY / 2));
+			if (GameVariables.settings.cc_useController)
+				camFollow.setPosition((!shiftCamera) ? player.x + 300 + (controllerCursor.x / 2) : player.x - 300, player.y - 50 + (controllerCursor.y / 2));
 		}
 		if (!player.focus && !plrDead)
 		{
@@ -607,64 +633,126 @@ class PlayState extends FlxState
 
 		for (i in darkObjects.members)
 		{
-			if (FlxG.mouse.overlaps(i) && FlxG.mouse.pressedRight && player.focus)
+			if (!GameVariables.settings.cc_useController)
 			{
-				i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0.25, 0.1), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0.25, 0.1));
-				i.setColorValues(FlxMath.lerp(i.customColor.brightness, 0.5, 0.05), 1, 1.5);
-				i.color = 0xFF1EFF00;
-			}
-			if (!FlxG.mouse.overlaps(i) && player.focus)
-			{
-				i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0, 0.025), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0, 0.025));
-				i.setColorValues(FlxMath.lerp(i.customColor.brightness, 0.5, 0.05), 1, 1);
-				i.color = 0xFF257008;
-			}
-			else
-			{
-				i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0, 0.025), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0, 0.025));
-				i.setColorValues(0, 1, 1);
-				i.color = 0xFFFFFFFF;
-			}
-			if (FlxG.mouse.overlaps(i) && FlxG.mouse.pressedRight && FlxG.mouse.justPressed && player.focus)
-			{
-				var ogWidth = i.frameWidth;
-				var ogHeight = i.frameHeight;
-				trace(i.ogPath);
-				gameShader.saturation.value[0] = 2;
-				gameShader.contrast.value[0] = 2;
-				FlxG.camera.shake(0.01, 0.1);
-				FlxG.camera.zoom = 0.55;
-				FlxG.camera.angle = -2;
-				if (gameTime + 500 < 6500)
-					gameTime += 500;
-				if (GameVariables.levelCount > 0)
-					daFocusAmount = Std.int(daFocusAmount / 1.5);
-				FlxTween.num(1, 0, 1, {ease: FlxEase.expoOut}, function(flt:Float)
+				if (FlxG.mouse.overlaps(i) && player._preppingAttack && player.focus)
 				{
-					i.customColor.brightness = flt;
-					trace(flt);
-				});
-				trace(i.frameWidth + " || " + i.frameHeight);
-				i.loadGraphic(i.ogPath.replace("_DARK", "_GOLD"));
-				trace(i.frameWidth + " || " + i.frameHeight);
-				i.y += (((i.frameHeight - i.height) * 0.5) + ogHeight - i.frameHeight) * 2.05;
-				i.x += (((i.frameWidth - i.width) * 0.5) + ogWidth - i.frameWidth) * 1.65;
-				darkObjects.remove(i, true);
-				envObjects.add(i);
-				i.updateHitbox();
-				i.color = 0xFFFFFFFF;
-				// i.centerOffsets(false);
+					i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0.25, 0.1), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0.25, 0.1));
+					i.setColorValues(FlxMath.lerp(i.customColor.brightness, 0.5, 0.05), 1, 1.5);
+					i.color = 0xFF1EFF00;
+				}
+				if (!FlxG.mouse.overlaps(i) && player.focus)
+				{
+					i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0, 0.025), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0, 0.025));
+					i.setColorValues(FlxMath.lerp(i.customColor.brightness, 0.5, 0.05), 1, 1);
+					i.color = 0xFF257008;
+				}
+				else
+				{
+					i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0, 0.025), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0, 0.025));
+					i.setColorValues(0, 1, 1);
+					i.color = 0xFFFFFFFF;
+				}
+				if (FlxG.mouse.overlaps(i) && player._preppingAttack && player.attack && player.focus)
+				{
+					var ogWidth = i.frameWidth;
+					var ogHeight = i.frameHeight;
+					trace(i.ogPath);
+					gameShader.saturation.value[0] = 2;
+					gameShader.contrast.value[0] = 2;
+					FlxG.camera.shake(0.01, 0.1);
+					FlxG.camera.zoom = 0.55;
+					FlxG.camera.angle = -2;
+					if (gameTime + 500 < 6500)
+						gameTime += 500;
+					if (GameVariables.levelCount > 0)
+						daFocusAmount = Std.int(daFocusAmount / 1.5);
+					FlxTween.num(1, 0, 1, {ease: FlxEase.expoOut}, function(flt:Float)
+					{
+						i.customColor.brightness = flt;
+						trace(flt);
+					});
+					trace(i.frameWidth + " || " + i.frameHeight);
+					i.loadGraphic(i.ogPath.replace("_DARK", "_GOLD"));
+					trace(i.frameWidth + " || " + i.frameHeight);
+					i.y += (((i.frameHeight - i.height) * 0.5) + ogHeight - i.frameHeight) * 2.05;
+					i.x += (((i.frameWidth - i.width) * 0.5) + ogWidth - i.frameWidth) * 1.65;
+					darkObjects.remove(i, true);
+					envObjects.add(i);
+					i.updateHitbox();
+					i.color = 0xFFFFFFFF;
+					// i.centerOffsets(false);
+				}
+			}
+			if (GameVariables.settings.cc_useController)
+			{
+				if (controllerCursor.overlaps(i, true) && player._preppingAttack && player.focus)
+				{
+					i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0.25, 0.1), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0.25, 0.1));
+					i.setColorValues(FlxMath.lerp(i.customColor.brightness, 0.5, 0.05), 1, 1.5);
+					i.color = 0xFF1EFF00;
+				}
+				if (!controllerCursor.overlaps(i, true) && player.focus)
+				{
+					i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0, 0.025), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0, 0.025));
+					i.setColorValues(FlxMath.lerp(i.customColor.brightness, 0.5, 0.05), 1, 1);
+					i.color = 0xFF257008;
+				}
+				else
+				{
+					i.scale.set(FlxMath.lerp(i.scale.x, i.ogDataCopy.scale[0] + 0, 0.025), FlxMath.lerp(i.scale.y, i.ogDataCopy.scale[1] + 0, 0.025));
+					i.setColorValues(0, 1, 1);
+					i.color = 0xFFFFFFFF;
+				}
+				if (controllerCursor.overlaps(i, true) && player._preppingAttack && player.attack && player.focus)
+				{
+					var ogWidth = i.frameWidth;
+					var ogHeight = i.frameHeight;
+					trace(i.ogPath);
+					gameShader.saturation.value[0] = 2;
+					gameShader.contrast.value[0] = 2;
+					FlxG.camera.shake(0.01, 0.1);
+					FlxG.camera.zoom = 0.55;
+					FlxG.camera.angle = -2;
+					if (gameTime + 500 < 6500)
+						gameTime += 500;
+					if (GameVariables.levelCount > 0)
+						daFocusAmount = Std.int(daFocusAmount / 1.5);
+					FlxTween.num(1, 0, 1, {ease: FlxEase.expoOut}, function(flt:Float)
+					{
+						i.customColor.brightness = flt;
+						trace(flt);
+					});
+					trace(i.frameWidth + " || " + i.frameHeight);
+					i.loadGraphic(i.ogPath.replace("_DARK", "_GOLD"));
+					trace(i.frameWidth + " || " + i.frameHeight);
+					i.y += (((i.frameHeight - i.height) * 0.5) + ogHeight - i.frameHeight) * 2.05;
+					i.x += (((i.frameWidth - i.width) * 0.5) + ogWidth - i.frameWidth) * 1.65;
+					darkObjects.remove(i, true);
+					envObjects.add(i);
+					i.updateHitbox();
+					i.color = 0xFFFFFFFF;
+					// i.centerOffsets(false);
+				}
 			}
 		}
 
 		for (i in defenseEnemies.members)
 		{
-			if (!i.isBoss && FlxG.mouse.overlaps(i) && FlxG.mouse.pressedRight && FlxG.mouse.justPressed && player.focus)
-			{
-				i.death(true);
-				daFocusAmount -= 400;
-				player.focus = false;
-			}
+			if (!GameVariables.settings.cc_useController)
+				if (!i.isBoss && FlxG.mouse.overlaps(i) && player._preppingAttack && player.attack && player.focus)
+				{
+					i.death(true);
+					daFocusAmount -= 400;
+					player.focus = false;
+				}
+			if (GameVariables.settings.cc_useController)
+				if (!i.isBoss && controllerCursor.overlaps(i, true) && player._preppingAttack && player.attack && player.focus)
+				{
+					i.death(true);
+					daFocusAmount -= 400;
+					player.focus = false;
+				}
 		}
 
 		for (i in envObjects)
@@ -860,7 +948,7 @@ class PlayState extends FlxState
 				subtitleText.y = FlxMath.lerp(subtitleText.y, subtitleOGPosition.y + 200, 0.05);
 		}
 
-		if (FlxG.keys.justPressed.ESCAPE)
+		if (FlxG.keys.justPressed.ESCAPE || GameVariables.settings.cc_useController && FlxG.gamepads.lastActive.justPressed.START)
 		{
 			persistentUpdate = false;
 			FlxG.sound.music.pause();

@@ -143,6 +143,9 @@ class SettingsState extends FlxState
     public var playedSoundOnLevels:Bool = false;
     public var playedSoundOnCredits:Bool = false;
 
+	public var pagesMap:Map<String, SettingsPage>;
+	public var curPage:SettingsPage;
+
 
 	override public function create()
 	{
@@ -267,18 +270,14 @@ class SettingsState extends FlxState
         optionGroup = new FlxTypedGroup<FlxText>();
         add(optionGroup);
 
+		var mainPage = new SettingsPage();
+		mainPage.addOneshotMenuItem("Gameplay", function(-1)
+		{
+			trace("game");
+		});
 
-        var ySpacing = 0;
-        for(i in 0...optionMenus.length)
-        {
-            var text = new FlxText(0,0,0, optionMenus[i], 48);
-            text.cameras = [camHUD];
-            text.screenCenter();
-            text.y += ySpacing - 50;
-            text.ID = i;
-            optionGroup.add(text);
-            ySpacing += 100;
-        }
+		genPage();
+
 
 
         topBar = new FlxSprite().makeGraphic(FlxG.width, Std.int(FlxG.height / 1.5), FlxColor.BLACK);
@@ -342,16 +341,125 @@ class SettingsState extends FlxState
             });
 	}
 
-    
+	public function genPage()
+	{
+		var lastYPos:Float = 0;
+		for (i in 0...curPage.options.length)
+		{
+			var text = new FlxText(0, 0, 0, curPage.options[i].name, 48);
+			text.cameras = [camHUD];
+			text.screenCenter();
+			text.y += lastYPos + curPage.optionSpacing;
+			text.ID = i;
+			optionGroup.add(text);
+			lastYPos += curPage.optionSpacing;
+		}
+	}
 }
 typedef SettingsMenuOption =
 {
     var name:String;
     var type:SettingOptionType;
     var value:Dynamic;
+	var increment:Float;
+
 }
+typedef SCallback = Float->Void;
 enum SettingOptionType 
 {
     STEPPER;
     BOOL;    
+	ONESHOT;
+}
+
+class SettingsPage
+{
+	public var options:Array<SettingsMenuOption>;
+	public var optionSpacing:Float = 50;
+
+	public function new()
+	{
+		options = new Array<SettingsMenuOption>();
+	}
+
+	public function addMenuItem(name:String, type:SettingOptionType, value:Dynamic, ?increment:Float = 0)
+	{
+		options.push({
+			name: name,
+			type: type,
+			value: value,
+			increment: increment
+		});
+	}
+
+	public function addBoolMenuItem(name:String, value:Bool)
+	{
+		options.push({
+			name: name,
+			type: BOOL,
+			value: null,
+			increment: -1,
+		});
+	}
+
+	public function addStepperMenuItem(name:String, value:Float, increment:Float = 0)
+	{
+		options.push({
+			name: name,
+			type: STEPPER,
+			value: value,
+			increment: increment
+		});
+	}
+
+	public function addOneshotMenuItem(name:String)
+	{
+		options.push({
+			name: name,
+			type: ONESHOT,
+			value: null,
+			increment: -1
+		});
+	}
+
+	public function onOptionSelected(curSelected:Int)
+	{
+		if (options[curSelected].type == BOOL)
+		{
+			var tmpVal:Bool = options[curSelected].value;
+			options[curSelected].value = !tmpVal;
+		}
+		if (options[curSelected].type == ONESHOT)
+			if (options[curSelected].o_OnPressFunction != null)
+				options[curSelected].o_OnPressFunction(null);
+	}
+
+	public function onOptionIncreased(curSelected:Int)
+	{
+		if (options[curSelected].type == STEPPER)
+		{
+			if (options[curSelected].increment != 0 || options[curSelected].increment != -1)
+			{
+				var tmpVal:Float = options[curSelected].value + options[curSelected].increment;
+				options[curSelected].value = tmpVal;
+			}
+		}
+	}
+
+	public function onOptionDecreased(curSelected:Int)
+	{
+		if (options[curSelected].type == STEPPER)
+		{
+			if (options[curSelected].increment != 0 || options[curSelected].increment != -1)
+			{
+				var tmpVal:Float = options[curSelected].value - options[curSelected].increment;
+				options[curSelected].value = tmpVal;
+			}
+		}
+	}
+
+	public function getCurObjectType(curSelected:Int)
+	{
+		return options[curSelected].type;
+	}
 }

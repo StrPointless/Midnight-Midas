@@ -147,7 +147,7 @@ class MainMenuState extends FlxState
 		FlxG.sound.cache("assets/music/stageloopslow1.ogg");
 
 		GameVariables.resetSettings();
-		GameVariables.settings.cc_useKeyboard = true;
+		// GameVariables.settings.cc_useKeyboard = true;
 		// GameVariables.settings.cc_useController = true;
 
 		camGame = new FlxCamera();

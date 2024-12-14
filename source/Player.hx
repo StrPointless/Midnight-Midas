@@ -79,9 +79,9 @@ class Player extends ModifiedFlxSprite
 		// animation.play('idle');
 		setGravity(true);
 		_wallSlidingCheckArray = new Array<Bool>();
-		var parser = new json2object.JsonParser<Map<String, Array<Float>>>();
-		parser.fromJson(File.getContent("assets/images/playerOffsets.json"));
-		characterOffsets = parser.value;
+		// var parser = new json2object.JsonParser<Map<String, Array<Float>>>();
+		// parser.fromJson(File.getContent("assets/images/playerOffsets.json"));
+		// characterOffsets = parser.value;
 
 		centerOffsets(true);
 	}

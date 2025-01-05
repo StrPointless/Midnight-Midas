@@ -3,10 +3,12 @@ import flixel.FlxObject;
 import flixel.FlxState;
 import haxe.Json;
 import json2object.JsonParser;
+import openfl.events.Event;
+import openfl.events.KeyboardEvent;
 import sys.FileSystem;
 import sys.io.File;
 
-class AnimationDebug extends FlxState
+class CharacterEditorState extends FlxState
 {
 	var player:Player;
 
@@ -35,6 +37,9 @@ class AnimationDebug extends FlxState
 	var shiftMultiplier:Int = 1;
 
 	var animationGhost:Player;
+
+	var p_yKey:KeyboardEvent;
+	var r_yKey:KeyboardEvent;
 
 	public override function create()
 	{

@@ -38,4 +38,5 @@ typedef ObjectData =
 	public var scrollSet:Bool;
 	public var daAngle:Float;
 	public var text:String;
+	public var zLevel:Int;
 }

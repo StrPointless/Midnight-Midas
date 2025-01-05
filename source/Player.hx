@@ -1,5 +1,6 @@
 import flixel.FlxG;
 import flixel.FlxSprite;
+import flixel.addons.effects.FlxTrail;
 import flixel.graphics.frames.FlxAtlasFrames;
 import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
@@ -10,8 +11,8 @@ import sys.io.File;
 
 class Player extends ModifiedFlxSprite
 {
-	public var _sprintSpeed:Float = 800;
-	public var _normalSpeed:Float = 750;
+	public var _sprintSpeed:Float = 200;
+	public var _normalSpeed:Float = 150;
 	public var _curSpeed:Float = 250;
 	public var _drag:Float;
 	public var _isSprinting:Bool = false;
@@ -46,6 +47,8 @@ class Player extends ModifiedFlxSprite
 	public var animationTransitionDelay:Float = 10;
 
 	public var characterOffsets:Map<String, Array<Float>>;
+
+	public var playerTrail:FlxTrail;
 
 	public function new(_x:Float, _y:Float)
 	{
@@ -84,6 +87,14 @@ class Player extends ModifiedFlxSprite
 		// characterOffsets = parser.value;
 
 		centerOffsets(true);
+		playerTrail = new FlxTrail(this, null, 4, 3, 0.75, 0.05);
+		playerTrail.blend = ADD;
+		playerTrail.color = 0x6AE1FF;
+	}
+
+	public function addPlayerTrial()
+	{
+		FlxG.state.add(playerTrail);
 	}
 
 	public var left:Bool;
@@ -103,6 +114,10 @@ class Player extends ModifiedFlxSprite
 	override function update(elapsed:Float)
 	{
 		super.update(elapsed);
+		if (playerTrail != null)
+		{
+			playerTrail.alpha = FlxMath.lerp(playerTrail.alpha, 0, 0.02);
+		}
 		if (!isDebug)
 		{
 			if (!dead)
@@ -178,7 +193,8 @@ class Player extends ModifiedFlxSprite
 
 				// color = colorArray[_curJumpCount];
 
-				FlxG.watch.addQuick('speed', _curSpeed);
+				FlxG.watch.addQuick('velocity', velocity);
+				FlxG.watch.addQuick('max velocity', maxVelocity);
 				FlxG.watch.addQuick('jumps', _curJumpCount);
 				FlxG.watch.addQuick('sprinting', _isSprinting);
 				FlxG.watch.addQuick('grounded', _isGrounded);
@@ -191,8 +207,12 @@ class Player extends ModifiedFlxSprite
 				// FlxG.watch.addQuick('wallSliding', _wallSliding);
 				// FlxG.watch.addQuick('velocity', velocity);
 				// FlxG.watch.addQuick('cur Animation', animation.curAnim.name);
-				_drag = _curSpeed * 5;
+				_drag = _curSpeed * 15;
 				drag.x = _drag;
+				maxVelocity.x = FlxMath.lerp(maxVelocity.x, 700, 0.15);
+
+				customColor.brightness = FlxMath.lerp(customColor.brightness, 0, 0.09);
+				
 				// trace(offset);
 
 				if (_isSprinting)
@@ -206,12 +226,12 @@ class Player extends ModifiedFlxSprite
 
 				if (left && !_handlingWallSlideJump)
 				{
-					velocity.x = -_curSpeed;
+					velocity.x += -_curSpeed;
 					flipX = true;
 				}
 				else if (right && !_handlingWallSlideJump)
 				{
-					velocity.x = _curSpeed;
+					velocity.x += _curSpeed;
 					flipX = false;
 				}
 
@@ -393,12 +413,12 @@ class Player extends ModifiedFlxSprite
 
 	}
 
-	public function onEnemyKilled()
+	public function onEnemyKilled(?enemy:DarkEnemy)
 	{
 
 		killBoost = true;
 		killBoostModifier = 1;
-		gameRef.onEnemyKilled();
+		gameRef.onEnemyKilled(enemy);
 		attacking = false;
 	}
 
@@ -421,8 +441,8 @@ class Player extends ModifiedFlxSprite
 	{
 		if (reset && _hasGravity)
 		{
-			acceleration.y = 2400;
-			maxVelocity.y = 2000;
+			acceleration.y = 2600;
+			maxVelocity.y = 2200;
 		}
 		else
 		{

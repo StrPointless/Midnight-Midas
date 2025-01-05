@@ -146,7 +146,9 @@ class MainMenuState extends FlxState
 		FlxG.sound.cache("assets/music/stageplayloop1.ogg");
 		FlxG.sound.cache("assets/music/stageloopslow1.ogg");
 
-		GameVariables.resetSettings();
+		trace("init" + " || " + GameVariables.initialized + " || " + GameVariables.settings);
+		if (!GameVariables.initialized)
+			GameVariables.resetSettings();
 		// GameVariables.settings.cc_useKeyboard = true;
 		// GameVariables.settings.cc_useController = true;
 
@@ -369,7 +371,7 @@ class MainMenuState extends FlxState
         playText.x -= 0;
         add(playText);
 
-		var verText = new FlxText(0, 0, 0, "Version: 0.25 (Speedrunner Patch Patch)", 18);
+		var verText = new FlxText(0, 0, 0, "Version: 0.5 (The pre-update)", 18);
 		verText.fieldHeight = 100;
 		verText.fieldWidth = 700;
 		verText.alignment = CENTER;
@@ -387,7 +389,10 @@ class MainMenuState extends FlxState
 		timeText.alignment = CENTER;
 		timeText.cameras = [camHUD];
 		timeText.screenCenter();
-		timeText.alpha = 0.5;
+		if (GameVariables.settings.speedrunMode)
+			timeText.alpha = 0.5;
+		else
+			timeText.alpha = 0;
 		timeText.y += 375;
 		add(timeText);
 
@@ -447,7 +452,7 @@ class MainMenuState extends FlxState
 		if (FlxG.keys.justPressed.NINE)
 			FlxG.switchState(new ObjectEditorState());
 		if (FlxG.keys.justPressed.ONE)
-			FlxG.switchState(new AnimationDebug());
+			FlxG.switchState(new CharacterEditorState());
 
 		/*
 			FlxG.camera.flash(FlxColor.WHITE, 1, function()
@@ -494,6 +499,9 @@ class MainMenuState extends FlxState
 			FlxG.mouse.visible = true;
 		if (FlxG.keys.anyJustPressed([ANY]) || GameVariables.settings.cc_useController && FlxG.gamepads.lastActive.anyJustPressed([ANY]))
 			FlxG.mouse.visible = false;
+
+		if (FlxG.keys.justPressed.TAB)
+			FlxG.switchState(new LevelEditorState({objects: [], type: "normal"}));
 
 		if (FlxG.keys.anyJustPressed([LEFT, A])
 			|| GameVariables.settings.cc_useController

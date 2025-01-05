@@ -23,114 +23,132 @@ import flixel.util.FlxSpriteUtil;
 import flixel.util.FlxTimer;
 import haxe.Json;
 import openfl.Assets;
+import openfl.events.KeyboardEvent;
 import openfl.filters.ShaderFilter;
 
 using StringTools;
 
 class PlayState extends FlxState
 {
+	// Camera Variables
 	public var camGame:FlxCamera;
 	public var camHUD:FlxCamera;
+	public var camFollow:FlxObject;
+	public var shiftCamera:Bool = false;
+	public var holdCam:Bool = false;
 
+	// Object Variables
 	public var envObjects:FlxTypedGroup<ModifiedFlxSprite>;
 	public var fgObjects:FlxTypedGroup<ModifiedFlxSprite>;
 	public var spikesObjs:FlxTypedGroup<ModifiedFlxSprite>;
 	public var darkObjects:FlxTypedGroup<ModifiedFlxSprite>;
-	public var camFollow:FlxObject;
 
+	// Player Variables
 	public var player:Player;
 	public var playerRefPoint:FlxPoint;
+	public var justFocused:Bool;
+	public var focusAmount:Float;
+	public var daFocusAmount:Int = 400;
 
-	var map:FlxOgmo3Loader;
-	var walls:FlxTilemap;
-
-	public var delay:Float = 100;
-
+	// Level Offset
 	public var levelOffset:FlxPoint;
+	// Cinematic Bars
 	public var topBar:FlxSprite;
 	public var bottomBar:FlxSprite;
-	public var plrDead:Bool = false;
-	public var deathTmr:Float = 20;
-
+	// Cinema Tweens
 	public var openingT:FlxTween;
 	public var openingB:FlxTween;
 
+	// Death Variables
+	public var plrDead:Bool = false;
+	public var deathTmr:Float = 20;
+	public var defenseDeathTmr:Float = 10;
+
+
+	// Darkness Variables
 	public var gameShader:TestShader;
 	public var gameSaturationValue:Float = 1;
 	public var gameContrastValue:Float = 1;
+	public var gradient:ModifiedFlxSprite;
+	public var bgDim:ModifiedFlxSprite;
 
+	// Global Camera Angle
 	public var cameraAngle:Float = 0;
 
-	public var justFocused:Bool;
+	// Music Variables
 	public var curMusicTime:Float;
 	public var curMusicState:String = "normal";
 
+	// Level Data
 	public var levelData:Level.LevelData;
 
-	public var shiftCamera:Bool = false;
-	public var holdCam:Bool = false;
+	// Event and Game Part OBjects
 	public var camStopEventObj:ModifiedFlxSprite;
-
 	public var defenseMiddle:ModifiedFlxSprite;
 
+	// Timer Variables
 	public var gameTime:Float = 6500;
-	public var gradient:ModifiedFlxSprite;
 
+	// Defense Enemy Stuff
 	public var defenseEnemies:FlxTypedGroup<DarkEnemy>;
-
-	public var nextEnemySpawnTime:Float;
 	public var collidingEnemy:DarkEnemy;
-	public var defenseDeathTmr:Float = 10;
+	public var nextEnemySpawnTime:Float;
+	public var canSpawnEnemies:Bool = true;
+	public var enemiesToSpawn:Int;
+
+	// Combo Variable
 	public var combo:Int = 0;
 
+	// Combo Text Variables
 	public var comboText:ModifiedFlxSprite;
 	public var firstNumber:ModifiedFlxSprite;
 	public var secondNumber:ModifiedFlxSprite;
-
+	// Shake
 	public var comboShakeAmout:Float;
 	public var comboOffset:Float;
-
+	// Positions
 	public var comboTextPos:FlxPoint;
 	public var firstNumberPos:FlxPoint;
 	public var secondNumberPos:FlxPoint;
-
+	// Active
 	public var comboActive:Bool = false;
 
-	public var canSpawnEnemies:Bool = true;
+	// Finale Boss Fight
 	public var finale:Bool = false;
-	public var bgDim:ModifiedFlxSprite;
 	public var defaultTimeScale:Float = 1.0;
-	public var enemiesToSpawn:Int;
 
+	// UI Stuff
 	public var focusBarBG:ModifiedFlxSprite;
 	public var focusBar:FlxBar;
 	public var uiBar:ModifiedFlxSprite;
 	public var uiIcon:ModifiedFlxSprite;
 	public var goldGroup:Array<ModifiedFlxSprite>;
 
-	public var focusAmount:Float;
-	public var daFocusAmount:Int = 400;
+	// Boss Stuff
 	public var bossHits:Int = 0;
 
+	// Subtitle Stuff
 	public var subtitleText:FlxText;
 	public var activeSubtitle:Bool;
 	public var justChangedSubtitle:Bool;
-
 	public var subtitleOGPosition:FlxPoint;
-
 	public var curSubtitleField:ModifiedFlxSprite;
+	// Game Variables
 	public var win:Bool = false;
 
+	// Speedrun Timer
 	public var timerSubstate:TimerSubstate;
 
+	// Controller Variables
 	public var controllerCursor:VitrualCursor;
 
 	override public function create()
 	{
-		GameVariables.leveltimeFames = 0;
-		GameVariables.paused = false;
 		persistentUpdate = true;
 		persistentDraw = true;
+
+		GameVariables.leveltimeFames = 0;
+		GameVariables.paused = false;
 		if (GameVariables.playerHP == 0)
 		{
 			GameVariables.playerHP = 4;
@@ -151,6 +169,7 @@ class PlayState extends FlxState
 
 		levelOffset = new FlxPoint(1200, 800);
 		camFollow = new FlxObject();
+		// Background
 		var bg = new FlxSprite().loadGraphic("assets/images/bg0.png");
 		bg.scrollFactor.set(0.2, 0.2);
 		bg.screenCenter();
@@ -190,6 +209,7 @@ class PlayState extends FlxState
 		player.screenCenter();
 		// player.color = 0xFFFFFF;
 		player.gameRef = this;
+		player.addPlayerTrial();
 		add(player);
 
 		fgObjects = new FlxTypedGroup<ModifiedFlxSprite>();
@@ -485,9 +505,12 @@ class PlayState extends FlxState
 
 		openingT = FlxTween.tween(topBar, {y: topBar.y - 500}, 2, {ease: FlxEase.expoOut, startDelay: 1});
 		openingB = FlxTween.tween(bottomBar, {y: bottomBar.y + 500}, 2, {ease: FlxEase.expoOut, startDelay: 1});
-		timerSubstate = new TimerSubstate();
-		timerSubstate.cameras = [camHUD];
-		openSubState(timerSubstate);
+		if (GameVariables.settings.speedrunMode)
+		{
+			timerSubstate = new TimerSubstate();
+			timerSubstate.cameras = [camHUD];
+			openSubState(timerSubstate);
+		}
 		if (GameVariables.settings.cc_useController)
 		{
 			controllerCursor = new VitrualCursor(0, 0);
@@ -496,27 +519,34 @@ class PlayState extends FlxState
 			controllerCursor.screenCenter();
 			add(controllerCursor);
 		}
+
 	}
 
 	var xPos:Float = 125;
+	var inCutscene:Bool = false;
 
 	override public function update(elapsed:Float)
 	{
 		if (FlxG.keys.justPressed.FOUR)
 			FlxG.bitmapLog.viewCache();
-		if (daFocusAmount <= 400)
-			daFocusAmount++;
 
-		focusAmount = FlxMath.remapToRange(daFocusAmount, 400, 0, 2, 0);
-		focusBar.value = FlxMath.lerp(focusBar.value, focusAmount, 0.05);
-
+		if (!inCutscene)
+		{
+			handleFocusUpdates();
+			handleShaders();
+			handlePlayerUpdates();
+			handleGameTime();
+		}
+		if (inCutscene && !plrDead && !win)
+		{
+			player._canMove = false;
+			handleFocusUpdates();
+			handleShaders();
+			handlePlayerUpdates();
+		}
 		// FlxG.watch.addQuick("gameTime", gameTime);
 		// FlxG.watch.addQuick("focus", daFocusAmount);
 		// FlxG.watch.addQuick("atan", Math.atan2(player.y, player.x));
-		gameShader.brightness.value[0] = FlxMath.remapToRange(gameTime, 6500, 0, 0, -1);
-		gameShader.saturation.value[0] = FlxMath.lerp(gameShader.saturation.value[0], gameSaturationValue, 0.05);
-		gameShader.contrast.value[0] = FlxMath.lerp(gameShader.contrast.value[0], gameContrastValue, 0.05);
-		gradient.alpha = FlxMath.remapToRange(gameTime, 6500, 0, 0, 1);
 		if (GameVariables.settings.cc_useController && player.focus)
 		{
 			controllerCursor.alpha = 1;
@@ -527,8 +557,6 @@ class PlayState extends FlxState
 			controllerCursor.setPosition(FlxMath.lerp(controllerCursor.x, player.getScreenPosition().x, 0.05),
 				FlxMath.lerp(controllerCursor.y, player.getScreenPosition().y, 0.05));
 		}
-		if (gameTime > 1)
-			gameTime--;
 
 		if (FlxG.sound.music != null)
 			curMusicTime = FlxG.sound.music.time;
@@ -546,7 +574,7 @@ class PlayState extends FlxState
 				FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.55, 0.05);
 			FlxG.camera.angle = FlxMath.lerp(FlxG.camera.angle, 0, 0.05);
 			if (defenseMiddle != null)
-				camFollow.setPosition(defenseMiddle.x + (FlxG.mouse.screenX / 20), defenseMiddle.y + FlxG.mouse.screenY / 20);
+				camFollow.setPosition((FlxG.mouse.screenX / 20) + (player.x - 0), (FlxG.mouse.screenY / 20) + ((player.y + 500) * 0.5));
 		}
 		if (FlxG.keys.justPressed.TAB)
 			FlxG.switchState(new LevelEditorState(levelData));
@@ -558,19 +586,11 @@ class PlayState extends FlxState
 		if(FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.R)
 			FlxG.resetState();
 
-		player._isGrounded = player.isTouching(DOWN);
-
-		if (player.isTouching(LEFT))
-			player._curWallLocation = LEFT;
-		else if (player.isTouching(RIGHT))
-			player._curWallLocation = RIGHT;
-		else
-			player._curWallLocation = NONE;
+		// handlePlayerUpdates();
 
 		super.update(elapsed);
 		FlxG.collide(envObjects, player);
 		// FlxG.collide(darkObjects, player);
-		player._wallSliding = (player.isTouching(RIGHT) && !player._isGrounded || player.isTouching(LEFT) && !player._isGrounded) ? true : false;
 		// trace(player._wallSliding);
 
 		if (player.left && !plrDead && !player.focus && levelData.type != "defense")
@@ -604,8 +624,6 @@ class PlayState extends FlxState
 		}
 		// FlxG.collide(walls, player);
 
-		if (gameTime < 3000)
-			deathSequence();
 
 		FlxG.timeScale = (player.focus) ? 0.3 : defaultTimeScale;
 		if (player.focus && !plrDead)
@@ -964,6 +982,43 @@ class PlayState extends FlxState
 			subtitleText.text = "CLICK RAPIDLY!!!!";
 		}
 	}
+	public function handleFocusUpdates()
+	{
+		focusAmount = FlxMath.remapToRange(daFocusAmount, 400, 0, 2, 0);
+		focusBar.value = FlxMath.lerp(focusBar.value, focusAmount, 0.05);
+		if (daFocusAmount <= 400)
+			daFocusAmount++;
+	}
+
+	public function handleGameTime()
+	{
+		if (gameTime > 1)
+			gameTime--;
+		if (gameTime < 3000)
+			deathSequence();
+	}
+
+	public function handleShaders()
+	{
+		gameShader.brightness.value[0] = FlxMath.remapToRange(gameTime, 6500, 0, 0, -1);
+		gameShader.saturation.value[0] = FlxMath.lerp(gameShader.saturation.value[0], gameSaturationValue, 0.05);
+		gameShader.contrast.value[0] = FlxMath.lerp(gameShader.contrast.value[0], gameContrastValue, 0.05);
+		gradient.alpha = FlxMath.remapToRange(gameTime, 6500, 0, 0, 1);
+	}
+
+	public function handlePlayerUpdates()
+	{
+		player._isGrounded = player.isTouching(DOWN);
+
+		if (player.isTouching(LEFT))
+			player._curWallLocation = LEFT;
+		else if (player.isTouching(RIGHT))
+			player._curWallLocation = RIGHT;
+		else
+			player._curWallLocation = NONE;
+
+		player._wallSliding = (player.isTouching(RIGHT) && !player._isGrounded || player.isTouching(LEFT) && !player._isGrounded) ? true : false;
+	}
 
 	public function substateClosed()
 	{
@@ -1031,14 +1086,25 @@ class PlayState extends FlxState
 		});
 	}
 
-	public function onEnemyKilled()
+	public function onEnemyKilled(?enemy:DarkEnemy)
 	{
 		if (gameTime + 100 < 6500)
 			gameTime += 10 * ((combo * 5.5) / 2);
 		daFocusAmount += 75;
 		FlxG.camera.shake(0.01, 0.1);
 		player._curJumpCount = 1;
-		nextEnemySpawnTime -= 5;
+		player.maxVelocity.x += 1500;
+		player.velocity.x *= -1.25;
+		player.playerTrail.resetTrail();
+		player.playerTrail.delay = 6;
+		player.playerTrail.alpha = 1;
+		player.customColor.brightness = 0.45;
+		nextEnemySpawnTime -= 15;
+		if (enemy != null)
+		{
+			camFollow.x += (camFollow.x - enemy.x) * 0.5;
+			camFollow.y += (camFollow.y - enemy.y) * 0.5;
+		}
 		FlxG.camera.zoom = 0.6;
 		FlxG.camera.angle = FlxG.random.int(-2, 2);
 		combo++;
@@ -1181,7 +1247,11 @@ class PlayState extends FlxState
 		FlxG.sound.play("assets/sounds/death.ogg", 0.5);
 		FlxG.sound.play("assets/sounds/deathguylol.ogg", 0.5);
 		player.dead = true;
-		FlxG.sound.music.fadeOut(1, 0);
+		FlxTween.num(FlxG.sound.music.pitch, 0.25, 4, {}, function(val:Float)
+		{
+			FlxG.sound.music.pitch = val;
+		});
+		FlxG.sound.music.fadeOut(4, 0);
 
 		if (comboActive)
 			dropCombo();

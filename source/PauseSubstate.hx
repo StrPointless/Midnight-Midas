@@ -22,6 +22,8 @@ class PauseSubstate extends FlxSubState
 
 	public var acceptCatch:Bool = false;
 
+	public var controlType:String;
+
 	public override function create()
 	{
 		bg = new FlxSprite().makeGraphic(1920, 1080, FlxColor.BLACK);
@@ -49,12 +51,26 @@ class PauseSubstate extends FlxSubState
 		optionsGroup.push(resume);
 		optionsGroup.push(quit);
 		super.create();
+		if (GameVariables.settings.cc_useController)
+			controlType == "Controller";
+		if (GameVariables.settings.cc_useKeyboardMouse)
+			controlType == "KeyboardMouse";
+		if (GameVariables.settings.cc_useKeyboard)
+			controlType == "Keyboard";
 	}
 
 	public override function update(elapsed:Float)
 	{
 		FlxG.watch.addQuick("curSelect", curSelected);
-		if (GameVariables.settings.cc_useKeyboardMouse)
+		FlxG.watch.addQuick("ControlType", controlType);
+		if (FlxG.mouse.justMoved)
+			controlType = "KeyboardMouse";
+		if (FlxG.keys.anyJustPressed([ANY]))
+			controlType = "Keyboard";
+		if (FlxG.gamepads.lastActive != null && FlxG.gamepads.anyInput())
+			controlType = "Controller";
+
+		if (GameVariables.settings.cc_useKeyboardMouse || controlType == "KeyboardMouse")
 		{
 			if (FlxG.mouse.overlaps(resume, this.camera))
 			{
@@ -106,7 +122,7 @@ class PauseSubstate extends FlxSubState
 				quit.scale.set(FlxMath.lerp(quit.scale.x, 1, 0.05), FlxMath.lerp(quit.scale.y, 1, 0.05));
 			}
 		}
-		if (GameVariables.settings.cc_useKeyboard)
+		if (GameVariables.settings.cc_useKeyboard || controlType == "Keyboard")
 		{
 			if (FlxG.keys.anyJustPressed([S, DOWN]))
 				changeSelection(1);
@@ -135,7 +151,7 @@ class PauseSubstate extends FlxSubState
 				FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
 			}
 		}
-		if (GameVariables.settings.cc_useController)
+		if (GameVariables.settings.cc_useController || controlType == "Controller")
 		{
 			if (FlxG.gamepads.lastActive.analog.justMoved.LEFT_STICK_Y && FlxG.gamepads.lastActive.getYAxis(LEFT_ANALOG_STICK) < 0)
 				changeSelection(-1);
@@ -170,6 +186,7 @@ class PauseSubstate extends FlxSubState
 				FlxG.sound.play("assets/sounds/trueconfirm.ogg", 0.5);
 			}
 		}
+
 		super.update(elapsed);
 	}
 	public function doSelection()

@@ -46,14 +46,6 @@ class DarkEnemy extends ModifiedFlxSprite
 		animation.addByPrefix("idle1", "darKEnemy1idle", 12, true);
 		animation.addByPrefix("death1", "darKEnemy1Death", 24, false);
 
-		var daShader = new TestShader();
-		daShader.saturation.value = [0];
-		daShader.contrast.value = [0];
-
-		daShader.contrast.value[0] = 1.55;
-		daShader.saturation.value[0] = 1.55;
-
-		shader = daShader;
 		isBoss = boss;
 
 		if (!isBoss)
@@ -104,6 +96,9 @@ class DarkEnemy extends ModifiedFlxSprite
 		if (isBoss && player.overlaps(this) && !dead && player.attacking)
 		{
 			hp--;
+			customColor.contrast = 2;
+			customColor.saturation = 2;
+			customColor.brightness = 0.25;
 			player.attacking = false;
 			if (hp <= 0)
 			{
@@ -150,15 +145,21 @@ class DarkEnemy extends ModifiedFlxSprite
 			playedGoldHit = true;
 			FlxG.sound.play("assets/sounds/slowhit.ogg", 0.45);
 		}
+		customColor.contrast = FlxMath.lerp(customColor.contrast, 1.55, 0.09);
+		customColor.saturation = FlxMath.lerp(customColor.saturation, 1.55, 0.09);
+		customColor.brightness = FlxMath.lerp(customColor.brightness, 0, 0.09);
 
 		super.update(elapsed);
 	}
 
 	public function death(?slowMo:Bool = false)
 	{
+		customColor.contrast = 2;
+		customColor.saturation = 2;
+		customColor.brightness = 0.25;
 		slowMoDead = slowMo;
 		dead = true;
-		player.onEnemyKilled();
+		player.onEnemyKilled(this);
 		originalPostion = new FlxPoint(x, y);
 		shakeTmr = 100;
 		alpha = 0.45;

@@ -2,6 +2,7 @@ import flixel.input.keyboard.FlxKey;
 
 class GameVariables
 {
+	public static var initialized:Bool = false;
 	public static var levelCount:Int = 0;
 	public static var defenseEnemyCount1:Int = 25;
 	public static var defenseEnemyCount2:Int = 50;
@@ -43,9 +44,32 @@ class GameVariables
 			cc_useKeyboard: false,
 			useBackgroundShaders: true,
 			cc_useController: false,
-			cc_useKeyboardMouse: false
+			cc_useKeyboardMouse: true,
+			speedrunMode: false
 		}
 		settings = tempSet;
+		initialized = true;
+		trace("RESET SETTINGS");
+	}
+
+	public static function setControlType(controlType:ControlType)
+	{
+		trace("setting control type to " + controlType);
+		switch (controlType)
+		{
+			case Controller:
+				GameVariables.settings.cc_useController = true;
+				GameVariables.settings.cc_useKeyboard = false;
+				GameVariables.settings.cc_useKeyboardMouse = false;
+			case Fullkeyboard:
+				GameVariables.settings.cc_useController = false;
+				GameVariables.settings.cc_useKeyboard = true;
+				GameVariables.settings.cc_useKeyboardMouse = false;
+			case KeyboardMouse:
+				GameVariables.settings.cc_useController = false;
+				GameVariables.settings.cc_useKeyboard = false;
+				GameVariables.settings.cc_useKeyboardMouse = true;
+		}
 	}
 }
 
@@ -65,5 +89,11 @@ typedef PlayerSettings =
 	var cc_useController:Bool;
 
 	var useBackgroundShaders:Bool;
-	
+	var speedrunMode:Bool;
+}
+enum ControlType
+{
+	Controller;
+	Fullkeyboard;
+	KeyboardMouse;
 }

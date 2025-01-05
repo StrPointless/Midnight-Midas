@@ -11,6 +11,7 @@ class ModifiedFlxSprite extends FlxSprite
 	public var customColor:CustomColorManipulation;
 	public var customShader:TestShader;
 	public var ogPath:String = "";
+	public var objectZLevel:Int = 0;
 
 	public var ogDataCopy:ObjectData;
 

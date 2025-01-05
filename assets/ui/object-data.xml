@@ -14,6 +14,9 @@
                 <number-stepper pos="1" step="0.1" min="0" max="1" id="scrollYStepper"/>
                 <number-stepper pos="0" step="1" min="-360" max="360" id="angleStepper"/>
                 <textfield id="subTextField"/>
+                <spacer />
+                <section-header text="Z Order" />
+                <number-stepper pos="-1" step="1" min="-1" max="10" id="zOrderStepper"/>
             </vbox>
     </tabview>
 </vbox>

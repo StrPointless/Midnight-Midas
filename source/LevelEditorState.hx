@@ -4,10 +4,15 @@ import flixel.FlxG;
 import flixel.FlxObject;
 import flixel.FlxSprite;
 import flixel.FlxState;
+import flixel.addons.effects.chainable.FlxEffectSprite;
+import flixel.addons.effects.chainable.FlxOutlineEffect;
+import flixel.graphics.FlxGraphic;
 import flixel.group.FlxGroup.FlxTypedGroup;
+import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
 import flixel.tweens.FlxTween;
 import flixel.util.FlxColor;
+import flixel.util.FlxSpriteUtil;
 import flixel.util.FlxTimer;
 import haxe.Json;
 import haxe.ui.Toolkit;
@@ -92,12 +97,21 @@ class LevelEditorState extends FlxState
 	public var objectGroup:FlxTypedGroup<ModifiedFlxSprite>;
 
 	public var curSelectedObject:ModifiedFlxSprite;
+	public var curSelectedObjectOutline:FlxSprite;
+
+	public var curSelectedObjects:FlxTypedGroup<ModifiedFlxSprite>;
+	public var curSelectedObjectsOutlines:FlxTypedGroup<FlxSprite>;
 
 	public var curMode:String = "draw";
 
 	public var movingObject:Bool = false;
 
+	//-1 All Visible, Else: specific stuff
+	public var zLevel:Int = 0;
+	public var zObjectGroups:FlxTypedGroup<FlxTypedGroup<ModifiedFlxSprite>>;
+
 	// at the end, if you touch the gold it restarts
+
 
 	public function new(data:LevelData)
 	{
@@ -107,6 +121,7 @@ class LevelEditorState extends FlxState
 
 	public override function create()
 	{
+		FlxG.mouse.visible = true;
 		camEditor = new FlxCamera();
 		camHUD = new FlxCamera();
 		camHUD.bgColor.alpha = 0;
@@ -127,6 +142,11 @@ class LevelEditorState extends FlxState
 
 		objectGroup = new FlxTypedGroup<ModifiedFlxSprite>();
 		add(objectGroup);
+
+		zObjectGroups = new FlxTypedGroup<FlxTypedGroup<ModifiedFlxSprite>>();
+		add(zObjectGroups);
+		curSelectedObjects = new Array<ModifiedFlxSprite>();
+		curSelectedObjectsOutlines = new Array<FlxSprite>();
 
 		Toolkit.init();
 		Toolkit.theme = Theme.DARK;
@@ -218,7 +238,7 @@ class LevelEditorState extends FlxState
 					selectedObject.loadGraphic(objectMap[objectList[curObjectNumb]], false, 0, 0, true);
 				trace("swapped to " + objectList[curObjectNumb]);
 			}
-			if (FlxG.keys.justPressed.SPACE)
+			if (FlxG.mouse.justPressed)
 			{
 				var newSprite:ModifiedFlxSprite = new ModifiedFlxSprite(0, 0);
 				if (objectMap.get(objectList[curObjectNumb]) != "playerRef")
@@ -242,9 +262,24 @@ class LevelEditorState extends FlxState
 				newSprite.y = FlxG.mouse.getWorldPosition(camEditor).y;
 				newSprite.scale.set(curScale, curScale);
 				newSprite.solid = true;
+				if (zLevel == -1)
+					newSprite.objectZLevel = 0;
+				else
+					newSprite.objectZLevel = zLevel;
 				newSprite.updateHitbox();
+				// trace(zObjectGroups);
 				// add(newSprite);
-				objectGroup.add(newSprite);
+				if (zObjectGroups.members[newSprite.objectZLevel] == null)
+					zObjectGroups.members[newSprite.objectZLevel] = new FlxTypedGroup<ModifiedFlxSprite>();
+
+				zObjectGroups.members[newSprite.objectZLevel].add(newSprite);
+				for (i in zObjectGroups)
+				{
+					if (i != null)
+						trace("Not null Group");
+					else
+						trace("Null group");
+				}
 			}
 			if (selectedObject != null)
 			{
@@ -253,17 +288,40 @@ class LevelEditorState extends FlxState
 				selectedObject.alpha = 0.5;
 			}
 		}
+		if (FlxG.mouse.justPressed && !FlxG.mouse.overlaps(objectGroup) && curSelectedObject != null)
+		{
+			curSelectedObject = null;
+			remove(curSelectedObjectOutline);
+		}
+		if (curSelectedObjectOutline != null)
+			curSelectedObjectOutline.alpha = FlxMath.lerp(curSelectedObjectOutline.alpha, 0.25, 0.09);
 		if (curMode == "edit")
 		{
 			selectedObject.alpha = 0;
-			for (i in objectGroup.members)
+			if (zObjectGroups.members[zLevel] != null)
 			{
-				if (FlxG.mouse.justPressed && FlxG.mouse.overlaps(i) && !uiSubState.hoveringOverUI)
+				for (i in zObjectGroups.members[zLevel])
 				{
-					uiSubState.onSelectedObjChange(i);
-					curSelectedObject = i;
-					curScale = curSelectedObject.scale.x;
-					trace("selected " + i);
+					if (FlxG.mouse.justPressed && FlxG.mouse.overlaps(i) && !uiSubState.hoveringOverUI)
+					{
+						uiSubState.onSelectedObjChange(i);
+						curSelectedObject = i;
+						if (curSelectedObjectOutline != null)
+							remove(curSelectedObjectOutline);
+						var daEffect:FlxOutlineEffect = new FlxOutlineEffect(FlxOutlineMode.PIXEL_BY_PIXEL, FlxColor.WHITE, 5);
+						curSelectedObjectOutline = new FlxEffectSprite(curSelectedObject, [daEffect]);
+						curSelectedObjectOutline.alpha = 1;
+						curSelectedObjectOutline.scale.set(curSelectedObject.scale.x, curSelectedObject.scale.y);
+						curSelectedObjectOutline.scrollFactor.set(curSelectedObject.scrollFactor.x, curSelectedObject.scrollFactor.y);
+						curSelectedObjectOutline.updateHitbox();
+						curSelectedObjectOutline.centerOffsets(true);
+						curSelectedObjectOutline.setPosition(curSelectedObject.x, curSelectedObject.y);
+						add(curSelectedObjectOutline);
+						// insert(this.members.indexOf(curSelectedObject) + 1, curSelectedObjectOutline);
+						// add(curSelectedObjectOutline);
+						curScale = curSelectedObject.scale.x;
+						trace("selected " + i);
+					}
 				}
 			}
 			if (curSelectedObject != null)
@@ -272,8 +330,12 @@ class LevelEditorState extends FlxState
 					movingObject = !movingObject;
 				if (movingObject)
 				{
+
 					curSelectedObject.setPosition(FlxG.mouse.getWorldPosition(camEditor).x, FlxG.mouse.getWorldPosition(camEditor).y);
 					curSelectedObject.scale.set(curScale, curScale);
+					curSelectedObjectOutline.setPosition(curSelectedObject.x, curSelectedObject.y);
+					curSelectedObjectOutline.scale.set(curSelectedObject.scale.x, curSelectedObject.scale.y);
+
 				}
 				if (FlxG.keys.justPressed.NUMPADONE)
 				{
@@ -324,7 +386,7 @@ class LevelEditorState extends FlxState
 		if (FlxG.keys.pressed.DOWN)
 			camFollow.y += defaultMoveValue * moveValueMultiplier;
 
-		trace(camFollow);
+		// trace(camFollow);
 
 		if (FlxG.keys.justPressed.Q)
 			camEditor.zoom -= 0.1;
@@ -336,6 +398,33 @@ class LevelEditorState extends FlxState
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.S)
 			saveLevel();
 		super.update(elasped);
+	}
+	public function setZLevel(lvl:Int)
+	{
+		zLevel = lvl;
+
+		trace("Setting z level to " + lvl);
+
+		for (i in 0...zObjectGroups.members.length)
+		{
+			if (zObjectGroups.members[i] != null)
+			{
+				if (i != zLevel || zLevel != -1)
+				{
+					for (a in zObjectGroups.members[i])
+					{
+						a.alpha = 0.5;
+					}
+				}
+				if (i == zLevel || zLevel == -1)
+				{
+					for (a in zObjectGroups.members[i])
+					{
+						a.alpha = 1;
+					}
+				}
+			}
+		}
 	}
 
 	public function reloadLevel(data:LevelData)
@@ -350,6 +439,10 @@ class LevelEditorState extends FlxState
 		{
 			for (i in data.objects)
 			{
+				if (zObjectGroups.members[i.zLevel] == null)
+				{
+					zObjectGroups.members[i.zLevel] = new FlxTypedGroup<ModifiedFlxSprite>();
+				}
 				var newSprite:ModifiedFlxSprite = new ModifiedFlxSprite(i.position[0], i.position[1]);
 				if (i.graphicPath != "playerRef")
 					newSprite.loadGraphic(i.graphicPath);
@@ -378,13 +471,14 @@ class LevelEditorState extends FlxState
 				newSprite.angle = i.daAngle;
 				newSprite.customColor.brightness = i.tint;
 				newSprite.scale.set(i.scale[0], i.scale[1]);
+				newSprite.objectZLevel = i.zLevel;
 				if (i.daScroll[0] != 1 && !i.scrollSet)
 					i.scrollSet = true;
 				if (i.scrollSet)
 					newSprite.scrollFactor.set(i.daScroll[0], i.daScroll[1]);
 				newSprite.updateHitbox();
 				// add(newSprite);
-				objectGroup.add(newSprite);
+				zObjectGroups.members[i.zLevel].add(newSprite);
 			}
 		}
 	}
@@ -414,7 +508,8 @@ class LevelEditorState extends FlxState
 					daScroll: [i.scrollFactor.x, i.scrollFactor.y],
 					scrollSet: i.scrollSet,
 					daAngle: i.angle,
-					text: i.subText
+					text: i.subText,
+					zLevel: i.objectZLevel
 				});
 			trace("objAdded");
 		}

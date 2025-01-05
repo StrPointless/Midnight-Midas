@@ -18,6 +18,7 @@ import flixel.tweens.FlxEase;
 import flixel.tweens.FlxTween;
 import flixel.ui.FlxBar;
 import flixel.util.FlxColor;
+import flixel.util.FlxSignal.FlxTypedSignal;
 import flixel.util.FlxSpriteUtil;
 import flixel.util.FlxTimer;
 import haxe.Json;
@@ -26,7 +27,7 @@ import openfl.filters.ShaderFilter;
 
 using StringTools;
 
-class SettingsState extends FlxState
+class SettingsState extends BaseMenuState
 {
 	public var camGame:FlxCamera;
 	public var camHUD:FlxCamera;
@@ -145,7 +146,9 @@ class SettingsState extends FlxState
 
 	public var pagesMap:Map<String, SettingsPage>;
 	public var curPage:SettingsPage;
+	public var clicked:Bool;
 
+	public var transing:Bool = false;
 
 	override public function create()
 	{
@@ -270,11 +273,71 @@ class SettingsState extends FlxState
         optionGroup = new FlxTypedGroup<FlxText>();
         add(optionGroup);
 
+		pagesMap = new Map<String, SettingsPage>();
+
 		var mainPage = new SettingsPage();
-		mainPage.addOneshotMenuItem("Gameplay", function(-1)
+		mainPage.optionSpacing = 80;
+		mainPage.optionSize = 38;
+		mainPage.addOneshotMenuItem("Gameplay", function(dymamo:Dynamic)
 		{
-			trace("game");
+			changePage("gameplay");
 		});
+		mainPage.addOneshotMenuItem("Speedrun", function(dymamo:Dynamic)
+		{
+			changePage("speedrun");
+		});
+		mainPage.addOneshotMenuItem("Controls", function(dymamo:Dynamic)
+		{
+			changePage("controls");
+		});
+		mainPage.addOneshotMenuItem("Back", function(dymamo:Dynamic)
+		{
+			if (!transing)
+			{
+				transing = true;
+				openingT = FlxTween.tween(topBar, {y: topBar.y + 500}, 1, {ease: FlxEase.circIn});
+				openingB = FlxTween.tween(bottomBar, {y: bottomBar.y - 500}, 1, {
+					ease: FlxEase.circIn,
+					onComplete: function(twn:FlxTween)
+					{
+						FlxG.switchState(new MainMenuState());
+					}
+				});
+			}
+		});
+		/*
+					var gameplayPage = new SettingsPage();
+					gameplayPage.optionSize = 28;
+					gameplayPage.optionSpacing = 50;
+
+					var curControlScheme = "";
+					if (GameVariables.settings.cc_useController)
+						curControlScheme = "controller";
+					if (GameVariables.settings.cc_useKeyboard)
+						curControlScheme = "full keyboard";
+					if (GameVariables.settings.cc_useKeyboardMouse)
+						curControlScheme = "keyboard + mouse";
+
+					gameplayPage.addStringStepperMenuItem("Control Scheme: ", curControlScheme, ["full keyboard", "keyboard + mouse", "controller"], "Controls");
+					gameplayPage.addOneshotMenuItem("Back", function(dymamo:Dynamic)
+			{
+						changePage("main");
+			});
+		 */
+		var gameplayPage = createGameplayPage();
+		var speedrunPage = createSpeedrunPage();
+		var controlsPage = createControlsPage();
+		pagesMap.set("main", mainPage);
+		pagesMap.set("gameplay", gameplayPage);
+		pagesMap.set("speedrun", speedrunPage);
+		pagesMap.set("controls", controlsPage);
+
+		mainPage.onChangeCallback = function(page:SettingsPage)
+		{
+			updateTexts(page);
+		}
+		curPage = mainPage;
+
 
 		genPage();
 
@@ -306,11 +369,20 @@ class SettingsState extends FlxState
 
 	var xPos:Float = 125;
 
+	public function changePage(pageName:String)
+	{
+		if (!transing)
+		{
+			curPage = pagesMap.get(pageName);
+			genPage();
+		}
+	}
 	override public function update(elapsed:Float)
 	{
         FlxG.camera.follow(camFollow, LOCKON, 0.05);
 		FlxG.watch.addQuick("gameTime", FlxMath.remapToRange(gameTime, 6500, 0, 0, -1));
 		FlxG.watch.addQuick("focus", daFocusAmount);
+		FlxG.watch.addQuick("PageMap", pagesMap);
 
         if (FlxG.sound.music != null)
 			curMusicTime = FlxG.sound.music.time;
@@ -330,8 +402,33 @@ class SettingsState extends FlxState
                 if(FlxG.mouse.overlaps(txt, camHUD))
                 {
                     curSelected = txt.ID;
-                    txt.scale.set(1.1,1.1);
+				txt.scale.set(FlxMath.lerp(txt.scale.x, 1.1, 0.15), FlxMath.lerp(txt.scale.y, 1.1, 0.15));
                     txt.alpha = 1;
+				if (FlxG.mouse.justPressed && !clicked)
+				{
+					txt.scale.set(1.2, 1.2);
+
+					if (curPage.options[curSelected] != null)
+					{
+						switch (curPage.options[curSelected].type)
+						{
+							case ONESHOT:
+								curPage.options[curSelected].pressFunction(null);
+
+							case SETTINGBOOL:
+								curPage.onOptionSelected(curSelected);
+								updateSettings();
+								updateTexts(curPage);
+							case STEPPER:
+							case STRINGSTEPPER:
+						}
+					}
+
+					clicked = true;
+				}
+				if (FlxG.mouse.justReleased)
+					clicked = false;
+
                 }
                 else
                 {
@@ -339,36 +436,173 @@ class SettingsState extends FlxState
                     txt.alpha = 0.75;
                 }
             });
+		for (i in optionGroup)
+		{
+			if (curSelected == i.ID)
+			{
+				//	trace(curPage.options[curSelected].type);
+				if (FlxG.keys.justPressed.RIGHT)
+					if (curPage.options[curSelected].type == STRINGSTEPPER)
+					{
+						curPage.onOptionIncreased(curSelected);
+						updateSettings();
+					}
+				if (FlxG.keys.justPressed.LEFT)
+					if (curPage.options[curSelected].type == STRINGSTEPPER)
+					{
+						curPage.onOptionDecreased(curSelected);
+						updateSettings();
+					}
+			}
+		}
+	}
+
+	public function updateSettings()
+	{
+		for (i in curPage.options)
+		{
+			switch (i.id)
+			{
+				case "Controls":
+					switch (i.value)
+					{
+						case "full keyboard":
+							GameVariables.setControlType(Fullkeyboard);
+						case "controller":
+							GameVariables.setControlType(Controller);
+						case "keyboard + mouse":
+							GameVariables.setControlType(KeyboardMouse);
+					}
+				case "speedrunMode":
+					switch (i.value)
+					{
+						case true:
+							GameVariables.settings.speedrunMode = true;
+						case false:
+							GameVariables.settings.speedrunMode = false;
+					}
+			}
+		}
+	}
+
+	public function updateTexts(daPage:SettingsPage)
+	{
+		trace("UPDATE");
+		for (i in 0...daPage.options.length)
+		{
+			if (daPage.options[i].type == STRINGSTEPPER)
+				optionGroup.members[i].text = daPage.options[i].name + ": < " + daPage.options[i].value + " >";
+			if (daPage.options[i].type == SETTINGBOOL)
+				optionGroup.members[i].text = daPage.options[i].name + ": " + daPage.options[i].value;
+		}
 	}
 
 	public function genPage()
 	{
+		if (optionGroup.length > 0)
+		{
+			for (i in 0...optionGroup.length)
+			{
+				optionGroup.remove(optionGroup.members[i]);
+			}
+		}
 		var lastYPos:Float = 0;
 		for (i in 0...curPage.options.length)
 		{
-			var text = new FlxText(0, 0, 0, curPage.options[i].name, 48);
+			var text = new FlxText(0, 0, 10000, curPage.options[i].name, curPage.optionSize);
 			text.cameras = [camHUD];
+			text.alignment = CENTER;
 			text.screenCenter();
-			text.y += lastYPos + curPage.optionSpacing;
+			if (i != 0)
+				text.y = lastYPos + curPage.optionSpacing;
+			lastYPos = text.y;
+			text.updateHitbox();
+			text.alpha = 0;
+			text.y -= 100;
+			FlxTween.tween(text, {alpha: 1, y: text.y + 100}, 1, {ease: FlxEase.expoOut});
 			text.ID = i;
 			optionGroup.add(text);
-			lastYPos += curPage.optionSpacing;
 		}
+		updateTexts(curPage);
+	}
+
+	public function createGameplayPage()
+	{
+		var page = new SettingsPage();
+		page.addOneshotMenuItem("Back", function(dymamo:Dynamic)
+		{
+			changePage("main");
+		});
+		page.onChangeCallback = function(page:SettingsPage)
+		{
+			updateTexts(page);
+		}
+
+		return page;
+	}
+
+	public function createControlsPage()
+	{
+		var page = new SettingsPage();
+		page.optionSize = 28;
+		page.optionSpacing = 50;
+		var curControlScheme = "";
+		if (GameVariables.settings.cc_useController)
+			curControlScheme = "controller";
+		if (GameVariables.settings.cc_useKeyboard)
+			curControlScheme = "full keyboard";
+		if (GameVariables.settings.cc_useKeyboardMouse)
+			curControlScheme = "keyboard + mouse";
+
+		page.addStringStepperMenuItem("Control Scheme: ", curControlScheme, ["full keyboard", "keyboard + mouse", "controller"], "Controls");
+		page.addOneshotMenuItem("Back", function(dymamo:Dynamic)
+		{
+			changePage("main");
+		});
+		page.onChangeCallback = function(page:SettingsPage)
+		{
+			updateTexts(page);
+		}
+
+		return page;
+	}
+
+	public function createSpeedrunPage()
+	{
+		var page = new SettingsPage();
+		page.optionSize = 28;
+		page.optionSpacing = 50;
+		var spdRunMdVal = GameVariables.settings.speedrunMode;
+		page.addBoolMenuItem("Speedrun Mode", spdRunMdVal, "speedrunMode");
+		page.addOneshotMenuItem("Back", function(dymamo:Dynamic)
+		{
+			changePage("main");
+		});
+		page.onChangeCallback = function(page:SettingsPage)
+		{
+			updateTexts(page);
+		}
+		return page;
 	}
 }
 typedef SettingsMenuOption =
 {
     var name:String;
+	var id:String;
     var type:SettingOptionType;
     var value:Dynamic;
 	var increment:Float;
 
+	var pressFunction:Dynamic->Void;
+	var ss_options:Array<String>;
+	var ss_curSec:Int;
 }
 typedef SCallback = Float->Void;
 enum SettingOptionType 
 {
     STEPPER;
-    BOOL;    
+	STRINGSTEPPER;
+	SETTINGBOOL;    
 	ONESHOT;
 }
 
@@ -376,62 +610,103 @@ class SettingsPage
 {
 	public var options:Array<SettingsMenuOption>;
 	public var optionSpacing:Float = 50;
+	public var optionSize:Int = 48;
+	public var onChangeCallback:SettingsPage->Void;
 
 	public function new()
 	{
 		options = new Array<SettingsMenuOption>();
 	}
 
-	public function addMenuItem(name:String, type:SettingOptionType, value:Dynamic, ?increment:Float = 0)
+	public function addMenuItem(name:String, type:SettingOptionType, value:Dynamic, ?increment:Float = 0, ?pressfunc:Dynamic->Void = null,
+			?optionsShiz:Array<String> = null, ?id:String = "")
 	{
+		if (id == "")
+			id = name;
 		options.push({
 			name: name,
+			id: id,
 			type: type,
 			value: value,
-			increment: increment
+			increment: increment,
+			pressFunction: pressfunc,
+			ss_options: optionsShiz,
+			ss_curSec: 0
 		});
 	}
 
-	public function addBoolMenuItem(name:String, value:Bool)
+	public function addBoolMenuItem(name:String, value:Bool, ?id:String = "")
 	{
+		if (id == "")
+			id = name;
 		options.push({
 			name: name,
-			type: BOOL,
-			value: null,
+			id: id,
+			type: SETTINGBOOL,
+			value: value,
 			increment: -1,
+			pressFunction: null,
+			ss_options: null,
+			ss_curSec: 0
 		});
 	}
 
-	public function addStepperMenuItem(name:String, value:Float, increment:Float = 0)
+	public function addStepperMenuItem(name:String, value:Float, increment:Float = 0, ?id:String = "")
 	{
+		if (id == "")
+			id = name;
 		options.push({
 			name: name,
+			id: id,
 			type: STEPPER,
 			value: value,
-			increment: increment
+			increment: increment,
+			pressFunction: null,
+			ss_options: null,
+			ss_curSec: 0
 		});
 	}
 
-	public function addOneshotMenuItem(name:String)
+	public function addStringStepperMenuItem(name:String, value:String, optionsShiz:Array<String>, ?id:String = "")
 	{
+		if (id == "")
+			id = name;
 		options.push({
 			name: name,
+			id: id,
+			type: STRINGSTEPPER,
+			value: value,
+			increment: 0,
+			pressFunction: null,
+			ss_options: optionsShiz,
+			ss_curSec: 0
+		});
+	}
+
+	public function addOneshotMenuItem(name:String, pressFunc:Dynamic->Void, ?id:String = "")
+	{
+		if (id == "")
+			id = name;
+		options.push({
+			name: name,
+			id: id,
 			type: ONESHOT,
 			value: null,
-			increment: -1
+			increment: -1,
+			pressFunction: pressFunc,
+			ss_options: null,
+			ss_curSec: 0
 		});
+		trace("options are now " + options);
 	}
 
 	public function onOptionSelected(curSelected:Int)
 	{
-		if (options[curSelected].type == BOOL)
+		if (options[curSelected].type == SETTINGBOOL)
 		{
 			var tmpVal:Bool = options[curSelected].value;
 			options[curSelected].value = !tmpVal;
 		}
-		if (options[curSelected].type == ONESHOT)
-			if (options[curSelected].o_OnPressFunction != null)
-				options[curSelected].o_OnPressFunction(null);
 	}
 
 	public function onOptionIncreased(curSelected:Int)
@@ -444,6 +719,17 @@ class SettingsPage
 				options[curSelected].value = tmpVal;
 			}
 		}
+		if (options[curSelected].type == STRINGSTEPPER)
+		{
+			if (options[curSelected].ss_curSec + 1 > options[curSelected].ss_options.length - 1)
+				options[curSelected].ss_curSec = 0;
+			else
+				options[curSelected].ss_curSec++;
+
+			options[curSelected].value = options[curSelected].ss_options[options[curSelected].ss_curSec];
+		}
+		if (onChangeCallback != null)
+			onChangeCallback(this);
 	}
 
 	public function onOptionDecreased(curSelected:Int)
@@ -456,6 +742,17 @@ class SettingsPage
 				options[curSelected].value = tmpVal;
 			}
 		}
+		if (options[curSelected].type == STRINGSTEPPER)
+		{
+			if (options[curSelected].ss_curSec - 1 < 0)
+				options[curSelected].ss_curSec = options[curSelected].ss_options.length - 1;
+			else
+				options[curSelected].ss_curSec--;
+
+			options[curSelected].value = options[curSelected].ss_options[options[curSelected].ss_curSec];
+		}
+		if (onChangeCallback != null)
+			onChangeCallback(this);
 	}
 
 	public function getCurObjectType(curSelected:Int)

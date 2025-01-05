@@ -52,6 +52,11 @@ class CustomUISubstate extends FlxSubState
 				levelEditorState.curSelectedObject.scrollSet = true;
 		}
 
+		objectDataView.zOrderStepper.onChange = function(e)
+		{
+			levelEditorState.setZLevel(e.value);
+		}
+
 		objectDataView.curModeDisplay.text = "Cur Mode: " + levelEditorState.curMode;
 		Screen.instance.addComponent(objectDataView);
 

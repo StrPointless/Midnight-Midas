@@ -23,8 +23,6 @@ class GameVariables
 		"The original version of this game was made in 8 days! It wasn't that great",
 		"2ND PLACE, 2ND PLACE, WE TAKE THOSEEEEEEE!!!",
 		"Hi Mom, Hi Dad",
-		"KC Productions",
-		"Cee",
 		"Heh",
 		"Wild",
 		"Eclipse knows the speedrun techs.",
@@ -40,6 +38,8 @@ class GameVariables
 			gp_skipMenus: false,
 			gp_tips: true,
 			gp_subtitles: true,
+			gp_flashingLights: true,
+			gp_staticCamera: false,
 			cc_reset: R,
 			cc_useKeyboard: false,
 			useBackgroundShaders: true,
@@ -81,6 +81,8 @@ typedef PlayerSettings =
 	var gp_subtitles:Bool;
 	var gp_tips:Bool;
 	var gp_skipMenus:Bool;
+	var gp_staticCamera:Bool;
+	var gp_flashingLights:Bool;
 
 	var cc_reset:FlxKey;
 
@@ -90,6 +92,7 @@ typedef PlayerSettings =
 
 	var useBackgroundShaders:Bool;
 	var speedrunMode:Bool;
+
 }
 enum ControlType
 {

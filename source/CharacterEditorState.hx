@@ -26,7 +26,10 @@ class CharacterEditorState extends FlxState
 		"attack1",
 		"attack0Air",
 		"attack1Air",
-		"death"
+		"death",
+		"confused",
+		"lockin",
+		"shit",
 	];
 	var offsets:Map<String, Array<Float>>;
 
@@ -50,7 +53,7 @@ class CharacterEditorState extends FlxState
 		animationGhost.setGravity(false, 0, 0);
 		animationGhost.screenCenter();
 		animationGhost.alpha = 0.5;
-		// add(animationGhost);
+		add(animationGhost);
 
 		player = new Player(0, 0);
 		player.isDebug = true;

@@ -448,7 +448,10 @@ class MainMenuState extends FlxState
 			camFollow.setPosition((FlxG.mouse.screenX / 20), (FlxG.mouse.screenY / 20));
 
 		if (FlxG.keys.justPressed.EIGHT)
-			FlxG.switchState(new LoadingState());
+		{
+			GameVariables.levelCount = 1;
+			FlxG.switchState(new PlayState());
+		}
 		if (FlxG.keys.justPressed.NINE)
 			FlxG.switchState(new ObjectEditorState());
 		if (FlxG.keys.justPressed.ONE)
@@ -478,13 +481,13 @@ class MainMenuState extends FlxState
 				{
 					i.scale.set(0.95, 0.95);
 					curSelected = i.ID;
+					if (FlxG.mouse.justPressed)
+						doSelection();
 				}
 				else
 				{
 					i.scale.set(FlxMath.lerp(i.scale.x, 0.75, 0.05), FlxMath.lerp(i.scale.y, 0.75, 0.05));
 				}
-				if (FlxG.mouse.justPressed)
-					doSelection();
 			}
 			else
 			{
@@ -597,8 +600,8 @@ class MainMenuState extends FlxState
 					FlxTween.tween(settingsText, {alpha: 0}, 1);
 					FlxTween.tween(levelsText, {alpha: 0}, 1);
 					FlxTween.tween(logo, {alpha: 0}, 1);
-					camHUD.fade(FlxColor.BLACK, 2, false);
-					FlxG.camera.fade(FlxColor.BLACK, 2, false, function()
+					camHUD.fade(FlxColor.BLACK, 0.5, false);
+					FlxG.camera.fade(FlxColor.BLACK, 0.5, false, function()
 					{
 						FlxG.switchState(new SettingsState());
 

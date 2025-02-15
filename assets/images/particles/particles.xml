@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="particles.png">
+	<!-- Created with Adobe Animate version 21.0.6.41649 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="particle_Hit0000" x="0" y="0" width="532" height="362"/>
+	<SubTexture name="particle_Hit0001" x="0" y="0" width="532" height="362"/>
+	<SubTexture name="particle_Hit0002" x="532" y="0" width="532" height="362"/>
+	<SubTexture name="particle_Hit0003" x="532" y="0" width="532" height="362"/>
+	<SubTexture name="particle_Hit0004" x="1064" y="0" width="532" height="362"/>
+	<SubTexture name="particle_Hit0005" x="0" y="362" width="532" height="362"/>
+	<SubTexture name="particle_Jump0000" x="532" y="362" width="914" height="94"/>
+	<SubTexture name="particle_Jump0001" x="532" y="362" width="914" height="94"/>
+	<SubTexture name="particle_Jump0002" x="0" y="724" width="914" height="94"/>
+	<SubTexture name="particle_Jump0003" x="0" y="724" width="914" height="94"/>
+	<SubTexture name="particle_Jump0004" x="914" y="724" width="914" height="94"/>
+	<SubTexture name="particle_Jump0005" x="0" y="818" width="914" height="94"/>
+	<SubTexture name="particle_Jump0006" x="914" y="818" width="914" height="94"/>
+	<SubTexture name="particle_Jump0007" x="914" y="818" width="914" height="94"/>
+	<SubTexture name="particle_Splash0000" x="0" y="912" width="513" height="474"/>
+	<SubTexture name="particle_Splash0001" x="0" y="912" width="513" height="474"/>
+	<SubTexture name="particle_Splash0002" x="513" y="912" width="513" height="474"/>
+	<SubTexture name="particle_Splash0003" x="1026" y="912" width="513" height="474"/>
+	<SubTexture name="particle_Splash0004" x="0" y="1386" width="513" height="474"/>
+	<SubTexture name="particle_Splash0005" x="513" y="1386" width="513" height="474"/>
+	<SubTexture name="particle_Splash0006" x="513" y="1386" width="513" height="474"/>
+	<SubTexture name="particle_Splash0007" x="1026" y="1386" width="513" height="474"/>
+</TextureAtlas>

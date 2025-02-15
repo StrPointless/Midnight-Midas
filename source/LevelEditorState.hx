@@ -10,8 +10,10 @@ import flixel.graphics.FlxGraphic;
 import flixel.group.FlxGroup.FlxTypedGroup;
 import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
+import flixel.text.FlxText;
 import flixel.tweens.FlxTween;
 import flixel.util.FlxColor;
+import flixel.util.FlxSort;
 import flixel.util.FlxSpriteUtil;
 import flixel.util.FlxTimer;
 import haxe.Json;
@@ -109,6 +111,15 @@ class LevelEditorState extends FlxState
 	//-1 All Visible, Else: specific stuff
 	public var zLevel:Int = 0;
 	public var zObjectGroups:FlxTypedGroup<FlxTypedGroup<ModifiedFlxSprite>>;
+	public var hiddenLayerArray:Array<Bool>;
+	public var clickrefPoint:FlxPoint;
+
+	public var curSelectedObjectDisplayText:FlxText;
+	public var curSelectedObjectDisplayTextStartPos:FlxPoint;
+	public var curSelectedObjectDisplaySubText:FlxText;
+	public var curSelectedObjectDisplaySubTextStartPos:FlxPoint;
+
+	
 
 	// at the end, if you touch the gold it restarts
 
@@ -134,19 +145,50 @@ class LevelEditorState extends FlxState
 		trace("State start");
 		trace(Assets.exists("assets/images/buildingA.png"));
 
-		selectedObject = new FlxSprite(0, 0, objectMap[objectList[0]]);
-		selectedObject.alpha = 0.5;
-		// selectedObject.scrollFactor.set();
-		selectedObject.cameras = [camHUD];
-		add(selectedObject);
 
 		objectGroup = new FlxTypedGroup<ModifiedFlxSprite>();
 		add(objectGroup);
 
 		zObjectGroups = new FlxTypedGroup<FlxTypedGroup<ModifiedFlxSprite>>();
+		for (i in 0...10)
+		{
+			trace("Created group " + i);
+			var group = new FlxTypedGroup<ModifiedFlxSprite>();
+			group.ID = i;
+			zObjectGroups.add(group);
+		}
 		add(zObjectGroups);
-		curSelectedObjects = new Array<ModifiedFlxSprite>();
-		curSelectedObjectsOutlines = new Array<FlxSprite>();
+		hiddenLayerArray = new Array<Bool>();
+		for (i in 0...10)
+		{
+			hiddenLayerArray.push(true);
+		}
+		// curSelectedObjects = new Array<ModifiedFlxSprite>();
+		// curSelectedObjectsOutlines = new Array<FlxSprite>();
+
+		selectedObject = new FlxSprite(0, 0, objectMap[objectList[0]]);
+		selectedObject.alpha = 0.5;
+		selectedObject.scrollFactor.set();
+		// selectedObject.cameras = [camHUD];
+		add(selectedObject);
+
+		curSelectedObjectDisplayText = new FlxText(0, 0, 3000, "Selected Object: ", 28);
+		curSelectedObjectDisplayText.setFormat(null, 28, FlxColor.WHITE, CENTER);
+		curSelectedObjectDisplayText.screenCenter();
+		curSelectedObjectDisplayText.y += 300;
+		curSelectedObjectDisplayText.cameras = [camHUD];
+		add(curSelectedObjectDisplayText);
+
+		curSelectedObjectDisplaySubText = new FlxText(0, 0, 3000, "< Object: 0 / 999 >", 28);
+		curSelectedObjectDisplaySubText.setFormat(null, 18, FlxColor.WHITE, CENTER);
+		curSelectedObjectDisplaySubText.screenCenter();
+		curSelectedObjectDisplaySubText.y += 330;
+		curSelectedObjectDisplaySubText.alpha = 0.5;
+		curSelectedObjectDisplaySubText.cameras = [camHUD];
+		add(curSelectedObjectDisplaySubText);
+
+		curSelectedObjectDisplaySubTextStartPos = new FlxPoint(curSelectedObjectDisplaySubText.x, curSelectedObjectDisplaySubText.y);
+		curSelectedObjectDisplayTextStartPos = new FlxPoint(curSelectedObjectDisplayText.x, curSelectedObjectDisplayText.y);
 
 		Toolkit.init();
 		Toolkit.theme = Theme.DARK;
@@ -167,6 +209,7 @@ class LevelEditorState extends FlxState
 		camEditor.follow(camFollow, LOCKON, 0.05);
 
 		reloadLevel(levelData);
+		clickrefPoint = new FlxPoint();
 	}
 
 	public override function update(elasped:Float)
@@ -269,10 +312,14 @@ class LevelEditorState extends FlxState
 				newSprite.updateHitbox();
 				// trace(zObjectGroups);
 				// add(newSprite);
-				if (zObjectGroups.members[newSprite.objectZLevel] == null)
-					zObjectGroups.members[newSprite.objectZLevel] = new FlxTypedGroup<ModifiedFlxSprite>();
+				trace(zLevel);
 
-				zObjectGroups.members[newSprite.objectZLevel].add(newSprite);
+				for (i in zObjectGroups.members)
+				{
+					if (i.ID == newSprite.objectZLevel)
+						i.add(newSprite);
+				}
+				// zObjectGroups.members[newSprite.objectZLevel].add(newSprite);
 				for (i in zObjectGroups)
 				{
 					if (i != null)
@@ -288,8 +335,9 @@ class LevelEditorState extends FlxState
 				selectedObject.alpha = 0.5;
 			}
 		}
-		if (FlxG.mouse.justPressed && !FlxG.mouse.overlaps(objectGroup) && curSelectedObject != null)
+		if (!uiSubState.hoveringOverUI && FlxG.mouse.justPressed && !FlxG.mouse.overlaps(objectGroup) && curSelectedObject != null)
 		{
+			trace("removed curSelected");
 			curSelectedObject = null;
 			remove(curSelectedObjectOutline);
 		}
@@ -297,28 +345,19 @@ class LevelEditorState extends FlxState
 			curSelectedObjectOutline.alpha = FlxMath.lerp(curSelectedObjectOutline.alpha, 0.25, 0.09);
 		if (curMode == "edit")
 		{
+			if (curSelectedObject != null && FlxG.mouse.overlaps(curSelectedObject) && FlxG.mouse.pressed)
+				movingObject = true;
+			if (movingObject && FlxG.mouse.released)
+				movingObject = false;
 			selectedObject.alpha = 0;
-			if (zObjectGroups.members[zLevel] != null)
+			if (getCurrentZlevelGroup() != null)
 			{
-				for (i in zObjectGroups.members[zLevel])
+				for (i in getCurrentZlevelGroup())
 				{
 					if (FlxG.mouse.justPressed && FlxG.mouse.overlaps(i) && !uiSubState.hoveringOverUI)
 					{
 						uiSubState.onSelectedObjChange(i);
 						curSelectedObject = i;
-						if (curSelectedObjectOutline != null)
-							remove(curSelectedObjectOutline);
-						var daEffect:FlxOutlineEffect = new FlxOutlineEffect(FlxOutlineMode.PIXEL_BY_PIXEL, FlxColor.WHITE, 5);
-						curSelectedObjectOutline = new FlxEffectSprite(curSelectedObject, [daEffect]);
-						curSelectedObjectOutline.alpha = 1;
-						curSelectedObjectOutline.scale.set(curSelectedObject.scale.x, curSelectedObject.scale.y);
-						curSelectedObjectOutline.scrollFactor.set(curSelectedObject.scrollFactor.x, curSelectedObject.scrollFactor.y);
-						curSelectedObjectOutline.updateHitbox();
-						curSelectedObjectOutline.centerOffsets(true);
-						curSelectedObjectOutline.setPosition(curSelectedObject.x, curSelectedObject.y);
-						add(curSelectedObjectOutline);
-						// insert(this.members.indexOf(curSelectedObject) + 1, curSelectedObjectOutline);
-						// add(curSelectedObjectOutline);
 						curScale = curSelectedObject.scale.x;
 						trace("selected " + i);
 					}
@@ -330,11 +369,8 @@ class LevelEditorState extends FlxState
 					movingObject = !movingObject;
 				if (movingObject)
 				{
-
-					curSelectedObject.setPosition(FlxG.mouse.getWorldPosition(camEditor).x, FlxG.mouse.getWorldPosition(camEditor).y);
+					curSelectedObject.setPosition(curSelectedObject.x + FlxG.mouse.deltaX, curSelectedObject.y + FlxG.mouse.deltaY);
 					curSelectedObject.scale.set(curScale, curScale);
-					curSelectedObjectOutline.setPosition(curSelectedObject.x, curSelectedObject.y);
-					curSelectedObjectOutline.scale.set(curSelectedObject.scale.x, curSelectedObject.scale.y);
 
 				}
 				if (FlxG.keys.justPressed.NUMPADONE)
@@ -364,7 +400,9 @@ class LevelEditorState extends FlxState
 
 				if (FlxG.keys.justPressed.DELETE)
 				{
-					objectGroup.remove(curSelectedObject, true);
+					getCurrentZlevelGroup().remove(curSelectedObject);
+					// remove(curSelectedObjectOutline);
+					// objectGroup.remove(curSelectedObject, true);
 					curSelectedObject = null;
 				}
 			}
@@ -397,38 +435,72 @@ class LevelEditorState extends FlxState
 
 		if (FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.S)
 			saveLevel();
+		if (FlxG.keys.justPressed.SEVEN)
+			for (i in zObjectGroups.members)
+			{
+				trace(i.ID);
+				if (i.length > 0)
+				{
+					trace("ITEMS:");
+					for (b in i.members)
+					{
+						trace(b);
+					}
+				}
+				else
+				{
+					trace("EMPTY");
+				}
+			}
+
+		if (curMode == "draw")
+		{
+			curSelectedObjectDisplaySubText.y = FlxMath.lerp(curSelectedObjectDisplaySubText.y, curSelectedObjectDisplaySubTextStartPos.y, 0.05);
+			curSelectedObjectDisplayText.y = FlxMath.lerp(curSelectedObjectDisplayText.y, curSelectedObjectDisplayTextStartPos.y, 0.05);
+			curSelectedObjectDisplayText.text = "Selected Object: " + objectList[curObjectNumb];
+			curSelectedObjectDisplaySubText.text = "< Object: " + curObjectNumb + " / " + (objectList.length - 1) + " >";
+		}
+		else
+		{
+			curSelectedObjectDisplaySubText.y = FlxMath.lerp(curSelectedObjectDisplaySubText.y, curSelectedObjectDisplaySubTextStartPos.y + 300, 0.02);
+			curSelectedObjectDisplayText.y = FlxMath.lerp(curSelectedObjectDisplayText.y, curSelectedObjectDisplayTextStartPos.y + 300, 0.02);
+		}
 		super.update(elasped);
+		reorderZLevel();
 	}
 	public function setZLevel(lvl:Int)
 	{
 		zLevel = lvl;
 
 		trace("Setting z level to " + lvl);
+		uiSubState.objectDataView.hiddenCheck.value = hiddenLayerArray[zLevel];
 
-		for (i in 0...zObjectGroups.members.length)
+		for (i in zObjectGroups.members)
 		{
-			if (zObjectGroups.members[i] != null)
-			{
-				if (i != zLevel || zLevel != -1)
-				{
-					for (a in zObjectGroups.members[i])
+			if (hiddenLayerArray[i.ID] == false)
+				i.visible = false;
+			else
+				i.visible = true;
+			if (i.ID != zLevel || zLevel != -1)
+				for (a in i)
+				
 					{
 						a.alpha = 0.5;
 					}
-				}
-				if (i == zLevel || zLevel == -1)
+			if (i.ID == zLevel || zLevel == -1)
 				{
-					for (a in zObjectGroups.members[i])
+				for (a in i)
 					{
 						a.alpha = 1;
 					}
 				}
-			}
+
 		}
 	}
 
 	public function reloadLevel(data:LevelData)
 	{
+		trace("reloading level data");
 		for (i in objectGroup.members)
 		{
 			// remove(i);
@@ -439,10 +511,6 @@ class LevelEditorState extends FlxState
 		{
 			for (i in data.objects)
 			{
-				if (zObjectGroups.members[i.zLevel] == null)
-				{
-					zObjectGroups.members[i.zLevel] = new FlxTypedGroup<ModifiedFlxSprite>();
-				}
 				var newSprite:ModifiedFlxSprite = new ModifiedFlxSprite(i.position[0], i.position[1]);
 				if (i.graphicPath != "playerRef")
 					newSprite.loadGraphic(i.graphicPath);
@@ -478,7 +546,11 @@ class LevelEditorState extends FlxState
 					newSprite.scrollFactor.set(i.daScroll[0], i.daScroll[1]);
 				newSprite.updateHitbox();
 				// add(newSprite);
-				zObjectGroups.members[i.zLevel].add(newSprite);
+				for (b in zObjectGroups.members)
+				{
+					if (b.ID == i.zLevel)
+						b.add(newSprite);
+				}
 			}
 		}
 	}
@@ -492,25 +564,28 @@ class LevelEditorState extends FlxState
 			objects: daObjects,
 			type: levelData.type
 		}
-		for (i in objectGroup.members)
+		for (a in zObjectGroups.members)
 		{
-			if (daObjects == null)
-				daObjects = [];
-			if (i != null)
-				daObjects.push({
-					graphicPath: i.spriteTag,
-					position: [i.x, i.y],
-					scale: [i.scale.x, i.scale.y],
-					xFlip: i.flipX,
-					yFlip: i.flipY,
-					tint: i.customColor.brightness,
-					solid: i.solid,
-					daScroll: [i.scrollFactor.x, i.scrollFactor.y],
-					scrollSet: i.scrollSet,
-					daAngle: i.angle,
-					text: i.subText,
-					zLevel: i.objectZLevel
-				});
+			for (i in a.members)
+			{
+				if (daObjects == null)
+					daObjects = [];
+				if (i != null)
+					daObjects.push({
+						graphicPath: i.spriteTag,
+						position: [i.x, i.y],
+						scale: [i.scale.x, i.scale.y],
+						xFlip: i.flipX,
+						yFlip: i.flipY,
+						tint: i.customColor.brightness,
+						solid: i.solid,
+						daScroll: [i.scrollFactor.x, i.scrollFactor.y],
+						scrollSet: i.scrollSet,
+						daAngle: i.angle,
+						text: i.subText,
+						zLevel: i.objectZLevel
+					});
+			}
 			trace("objAdded");
 		}
 		levelData = daData;
@@ -529,6 +604,16 @@ class LevelEditorState extends FlxState
 		}
 	}
 
+	public function reorderZLevel()
+	{
+		// trace("reordering z level");
+
+		// trace(zObjectGroups.members);
+		zObjectGroups.sort((order, obj1, obj2) ->
+		{
+			return FlxSort.byValues(order, obj1.ID, obj2.ID);
+		}, FlxSort.DESCENDING);
+	}
 	public function exitEditor()
 	{
 		FlxG.switchState(new PlayState());
@@ -540,7 +625,7 @@ class LevelEditorState extends FlxState
 			objects: [],
 			type: "normal"
 		}
-		reloadLevel(data);
+		FlxG.switchState(new LevelEditorState(data));
 	}
 
 	function onSaveComplete(_):Void
@@ -587,7 +672,8 @@ class LevelEditorState extends FlxState
 		{
 			trace(arr[0]);
 			var data:Level.LevelData = Json.parse(File.getContent(arr[0]));
-			reloadLevel(data);
+			FlxG.switchState(new LevelEditorState(data));
+			// reloadLevel(data);
 		}
 		else
 		{
@@ -603,5 +689,59 @@ class LevelEditorState extends FlxState
 	function _onCancelEvent(_):Void
 	{
 		trace("Cancelled!");
+	}
+	public function getCurrentZlevelGroup()
+	{
+		var daGroup = null;
+		for (i in zObjectGroups.members)
+		{
+			if (i.ID == zLevel)
+			{
+				daGroup = i;
+			}
+		}
+		return daGroup;
+	}
+
+	public function testLevel()
+	{
+		var daObjects = [];
+		if (levelData.type == "" || levelData.type == null)
+			levelData.type = "normal";
+		var daData:LevelData = {
+			objects: daObjects,
+			type: levelData.type
+		}
+		for (a in zObjectGroups.members)
+		{
+			if (daObjects == null)
+				daObjects = [];
+			for (i in a)
+			{
+				if (i != null)
+					daObjects.push({
+						graphicPath: i.spriteTag,
+						position: [i.x, i.y],
+						scale: [i.scale.x, i.scale.y],
+						xFlip: i.flipX,
+						yFlip: i.flipY,
+						tint: i.customColor.brightness,
+						solid: i.solid,
+						daScroll: [i.scrollFactor.x, i.scrollFactor.y],
+						scrollSet: i.scrollSet,
+						daAngle: i.angle,
+						text: i.subText,
+						zLevel: i.objectZLevel
+					});
+			}
+			trace("objAdded");
+		}
+		levelData = daData;
+		trace(levelData);
+		var daPlayState = new PlayState();
+		daPlayState.forcedLevel = true;
+		daPlayState.forcedLevelData = daData;
+
+		FlxG.switchState(daPlayState);
 	}
 }

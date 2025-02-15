@@ -19,6 +19,7 @@ import flixel.tweens.FlxEase;
 import flixel.tweens.FlxTween;
 import flixel.ui.FlxBar;
 import flixel.util.FlxColor;
+import flixel.util.FlxSort;
 import flixel.util.FlxSpriteUtil;
 import flixel.util.FlxTimer;
 import haxe.Json;
@@ -31,8 +32,8 @@ using StringTools;
 class PlayState extends FlxState
 {
 	// Camera Variables
-	public var camGame:FlxCamera;
-	public var camHUD:FlxCamera;
+	public var camGame:GameCamera;
+	public var camHUD:GameCamera;
 	public var camFollow:FlxObject;
 	public var shiftCamera:Bool = false;
 	public var holdCam:Bool = false;
@@ -50,8 +51,9 @@ class PlayState extends FlxState
 	public var focusAmount:Float;
 	public var daFocusAmount:Int = 400;
 
-	// Level Offset
+	// Level Variables
 	public var levelOffset:FlxPoint;
+	public var levelLayers:FlxTypedGroup<FlxTypedGroup<ModifiedFlxSprite>>;
 	// Cinematic Bars
 	public var topBar:FlxSprite;
 	public var bottomBar:FlxSprite;
@@ -66,6 +68,7 @@ class PlayState extends FlxState
 
 
 	// Darkness Variables
+	public var distortionShader:DistortionShader;
 	public var gameShader:TestShader;
 	public var gameSaturationValue:Float = 1;
 	public var gameContrastValue:Float = 1;
@@ -95,6 +98,9 @@ class PlayState extends FlxState
 	public var nextEnemySpawnTime:Float;
 	public var canSpawnEnemies:Bool = true;
 	public var enemiesToSpawn:Int;
+	public var enemieslastOne:Bool = false;
+	public var enemiesKilled:Int = 0;
+	public var enemiesGonnaBeSpawned:Int;
 
 	// Combo Variable
 	public var combo:Int = 0;
@@ -141,6 +147,11 @@ class PlayState extends FlxState
 
 	// Controller Variables
 	public var controllerCursor:VitrualCursor;
+	public var blackFadeBox:FlxSprite;
+
+	// LevelEditorForce
+	public var forcedLevel:Bool = false;
+	public var forcedLevelData:Level.LevelData;
 
 	override public function create()
 	{
@@ -158,8 +169,8 @@ class PlayState extends FlxState
 		FlxG.sound.cache("assets/music/stageplayloop1.ogg");
 		FlxG.sound.cache("assets/music/stageloopslow1.ogg");
 
-		camGame = new FlxCamera();
-		camHUD = new FlxCamera();
+		camGame = new GameCamera();
+		camHUD = new GameCamera();
 		camHUD.bgColor.alpha = 0;
 
 		FlxG.cameras.reset(camGame);
@@ -178,13 +189,25 @@ class PlayState extends FlxState
 		bg.scale.set(2, 2);
 		add(bg);
 
+		levelLayers = new FlxTypedGroup<FlxTypedGroup<ModifiedFlxSprite>>();
+		add(levelLayers);
+		for (i in 0...10)
+		{
+			var layer = new FlxTypedGroup<ModifiedFlxSprite>();
+			layer.ID = i;
+			levelLayers.add(layer);
+		}
+		levelLayers.sort((order, obj1, obj2) ->
+		{
+			return FlxSort.byValues(order, obj1.ID, obj2.ID);
+		}, FlxSort.DESCENDING);
+
 		envObjects = new FlxTypedGroup<ModifiedFlxSprite>();
 		add(envObjects);
 		spikesObjs = new FlxTypedGroup<ModifiedFlxSprite>();
 		add(spikesObjs);
 		darkObjects = new FlxTypedGroup<ModifiedFlxSprite>();
 		add(darkObjects);
-
 		bgDim = new ModifiedFlxSprite(0, 0);
 		bgDim.makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
 		bgDim.scale.set(2, 2);
@@ -217,7 +240,11 @@ class PlayState extends FlxState
 
 		FlxG.camera.bgColor = FlxColor.GRAY;
 
-		var daStuff:Level.LevelData = Json.parse(Assets.getText("assets/data/level" + GameVariables.levelCount + ".json"));
+		var daStuff = null;
+		if (!forcedLevel)
+			daStuff = Json.parse(Assets.getText("assets/data/level" + GameVariables.levelCount + ".json"));
+		else
+			daStuff = forcedLevelData;
 		levelData = daStuff;
 
 		for (i in daStuff.objects)
@@ -238,6 +265,8 @@ class PlayState extends FlxState
 				sprite.antialiasing = true;
 				sprite.customColor.brightness = i.tint;
 				sprite.immovable = true;
+				i.zLevel = Std.int(i.zLevel / 1);
+				sprite.objectZLevel = i.zLevel;
 				if (i.daScroll[0] != 1 && !i.scrollSet)
 					i.scrollSet = true;
 				if (i.scrollSet)
@@ -250,7 +279,11 @@ class PlayState extends FlxState
 				else if (i.graphicPath.endsWith("_DARK.png"))
 					darkObjects.add(sprite);
 				else
-					envObjects.add(sprite);
+					for (b in levelLayers.members)
+					{
+						if (b.ID == i.zLevel)
+							b.add(sprite);
+					}
 			}
 			else if (i.graphicPath == "camShiftEvent")
 			{
@@ -335,14 +368,19 @@ class PlayState extends FlxState
 
 
 		super.create();
+		distortionShader = new DistortionShader();
+		distortionShader.data.iTime = [0];
+		
+
 		gameShader = new TestShader();
 		gameShader.saturation.value = [0];
 		gameShader.contrast.value = [0];
 		gameShader.brightness.value = [0];
 
+
 		camGame.filters = [new ShaderFilter(gameShader)];
-		FlxG.camera.zoom = 0.75;
-		FlxG.camera.setScrollBounds(null, null, null, null);
+		camGame.camZoom = 0.75;
+		camGame.setScrollBounds(null, null, null, null);
 		if (FlxG.sound.music != null)
 			FlxG.sound.music.stop();
 
@@ -486,10 +524,13 @@ class PlayState extends FlxState
 		{
 			case 1:
 				enemiesToSpawn = GameVariables.defenseEnemyCount1;
+				enemiesGonnaBeSpawned = enemiesToSpawn;
 			case 3:
 				enemiesToSpawn = GameVariables.defenseEnemyCount2;
+				enemiesGonnaBeSpawned = enemiesToSpawn;
 			case 5:
 				enemiesToSpawn = GameVariables.defenseEnemyCount3;
+				enemiesGonnaBeSpawned = enemiesToSpawn;
 		}
 
 		topBar = new FlxSprite().makeGraphic(FlxG.width, Std.int(FlxG.height / 1.5), FlxColor.BLACK);
@@ -520,6 +561,16 @@ class PlayState extends FlxState
 			add(controllerCursor);
 		}
 
+		blackFadeBox = new FlxSprite().makeGraphic(FlxG.width, FlxG.height, FlxColor.BLACK);
+		blackFadeBox.scrollFactor.set();
+		blackFadeBox.screenCenter();
+		blackFadeBox.cameras = [camHUD];
+		add(blackFadeBox);
+		blackFadeBox.alpha = 0;
+
+		camGame.noFlashingLights = !GameVariables.settings.gp_flashingLights;
+		camGame.staticCamera = GameVariables.settings.gp_staticCamera;
+		
 	}
 
 	var xPos:Float = 125;
@@ -536,6 +587,7 @@ class PlayState extends FlxState
 			handleShaders();
 			handlePlayerUpdates();
 			handleGameTime();
+			player._canMove = true;
 		}
 		if (inCutscene && !plrDead && !win)
 		{
@@ -560,19 +612,18 @@ class PlayState extends FlxState
 
 		if (FlxG.sound.music != null)
 			curMusicTime = FlxG.sound.music.time;
-		camGame.angle = FlxMath.lerp(camGame.angle, cameraAngle, 0.05);
 		if (player._isGrounded && !plrDead && !player.focus && levelData.type != "defense")
-			FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.65, 0.05);
+			camGame.camZoom = 0.65;
 		if (!player._isGrounded && !plrDead && !player.focus && levelData.type != "defense")
-			FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.75, 0.05);
+			camGame.camZoom = 0.75;
 
-		if (levelData.type == "defense")
+		if (levelData.type == "defense" && !inCutscene)
 		{
 			if (finale)
-				FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.75, 0.05);
+				camGame.camZoom = 0.75;
 			else
-				FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.55, 0.05);
-			FlxG.camera.angle = FlxMath.lerp(FlxG.camera.angle, 0, 0.05);
+				camGame.camZoom = 0.55;
+			camGame.camAngle = 0;
 			if (defenseMiddle != null)
 				camFollow.setPosition((FlxG.mouse.screenX / 20) + (player.x - 0), (FlxG.mouse.screenY / 20) + ((player.y + 500) * 0.5));
 		}
@@ -585,18 +636,28 @@ class PlayState extends FlxState
 		}
 		if(FlxG.keys.pressed.CONTROL && FlxG.keys.justPressed.R)
 			FlxG.resetState();
-
+		if (FlxG.keys.justPressed.F6)
+		{
+			var effect = new ParticleEffect(player.getGraphicMidpoint().x + (player.flipX ? -400 : -125), player.getGraphicMidpoint().y - 200,
+				ParticleEffect.ParticleType.HIT);
+			effect.scale.set(0.5, 0.5);
+			effect.flipX = !player.flipX;
+			effect.updateHitbox();
+			effect.centerOffsets(true);
+			add(effect);
+		}
 		// handlePlayerUpdates();
 
 		super.update(elapsed);
 		FlxG.collide(envObjects, player);
+		FlxG.collide(levelLayers, player);
 		// FlxG.collide(darkObjects, player);
 		// trace(player._wallSliding);
 
 		if (player.left && !plrDead && !player.focus && levelData.type != "defense")
-			FlxG.camera.angle = FlxMath.lerp(FlxG.camera.angle, 1, 0.05);
+			camGame.camAngle = 1;
 		if (player.right && !plrDead && !player.focus && levelData.type != "defense")
-			FlxG.camera.angle = FlxMath.lerp(FlxG.camera.angle, -1, 0.05);
+			camGame.camAngle = -1;
 
 		FlxG.camera.follow(camFollow, LOCKON, 0.075);
 		if (!plrDead && !holdCam && levelData.type != "defense" && !player.focus)
@@ -630,8 +691,8 @@ class PlayState extends FlxState
 		{
 			gameSaturationValue = 1.25;
 			gameContrastValue = 1.25;
-			cameraAngle = 2;
-			FlxG.camera.zoom = FlxMath.lerp(FlxG.camera.zoom, 0.75, 0.05);
+			camGame.camAngle = 2;
+			camGame.camZoom = 0.45;
 			if (!GameVariables.settings.cc_useController)
 				camFollow.setPosition((!shiftCamera) ? player.x + 300 + (FlxG.mouse.screenX / 2) : player.x - 300, player.y - 50 + (FlxG.mouse.screenY / 2));
 			if (GameVariables.settings.cc_useController)
@@ -641,7 +702,7 @@ class PlayState extends FlxState
 		{
 			gameSaturationValue = 1;
 			gameContrastValue = 1;
-			cameraAngle = 0;
+			camGame.camAngle = 0;
 		}
 		if (justFocused != player.focus)
 		{
@@ -678,9 +739,9 @@ class PlayState extends FlxState
 					trace(i.ogPath);
 					gameShader.saturation.value[0] = 2;
 					gameShader.contrast.value[0] = 2;
-					FlxG.camera.shake(0.01, 0.1);
-					FlxG.camera.zoom = 0.55;
-					FlxG.camera.angle = -2;
+					camGame.shakeCamera(0.01, 0.1);
+					camGame.pulseZoom(0.55);
+					camGame.pulseRotate(-2);
 					if (gameTime + 500 < 6500)
 						gameTime += 500;
 					if (GameVariables.levelCount > 0)
@@ -729,9 +790,9 @@ class PlayState extends FlxState
 					trace(i.ogPath);
 					gameShader.saturation.value[0] = 2;
 					gameShader.contrast.value[0] = 2;
-					FlxG.camera.shake(0.01, 0.1);
-					FlxG.camera.zoom = 0.55;
-					FlxG.camera.angle = -2;
+					camGame.shakeCamera(0.01, 0.1);
+					camGame.pulseZoom(0.55);
+					camGame.pulseRotate(-2);
 					if (gameTime + 500 < 6500)
 						gameTime += 500;
 					if (GameVariables.levelCount > 0)
@@ -827,12 +888,14 @@ class PlayState extends FlxState
 		{
 			if (nextEnemySpawnTime > 1)
 				nextEnemySpawnTime--;
-			if (nextEnemySpawnTime <= 1 && canSpawnEnemies && enemiesToSpawn > 0)
+			if (nextEnemySpawnTime <= 1 && canSpawnEnemies)
 			{
 				var newEnm = new DarkEnemy(FlxG.width * (FlxG.random.bool(50) ? -2 : 2), FlxG.height * (FlxG.random.bool(50) ? 1 : -1));
 				newEnm.player = player;
 				defenseEnemies.add(newEnm);
 				nextEnemySpawnTime = FlxG.random.float(10, 80);
+				if (enemiesToSpawn - 1 == 0)
+					newEnm.ID = 2;
 				enemiesToSpawn--;
 			}
 			if (enemiesToSpawn == 0 && defenseEnemies.length == 0 && canSpawnEnemies)
@@ -840,8 +903,8 @@ class PlayState extends FlxState
 				canSpawnEnemies = false;
 				new FlxTimer().start(0.5, function(tmr:FlxTimer)
 				{
-					FlxG.camera.shake(0.01, 0.05);
-					FlxG.camera.flash(FlxColor.RED, 0.5);
+					camGame.shakeCamera(0.01, 0.05);
+					camGame.camflash(FlxColor.RED, 0.5);
 					var newEnm = new DarkEnemy(FlxG.width * (FlxG.random.bool(50) ? -2 : 2), FlxG.height * -2, true);
 					newEnm.player = player;
 					defenseEnemies.add(newEnm);
@@ -886,7 +949,7 @@ class PlayState extends FlxState
 					collidingEnemy = i;
 			}
 		}
-		if (collidingEnemy != null && collidingEnemy.overlaps(player))
+		if (collidingEnemy != null && collidingEnemy.overlaps(player) && !inCutscene)
 		{
 			defenseDeathTmr--;
 			if (defenseDeathTmr < 0 && !plrDead && !collidingEnemy.dead && collidingEnemy.stunTmr < 1 && !win)
@@ -980,6 +1043,13 @@ class PlayState extends FlxState
 		{
 			subtitleText.y = FlxMath.lerp(subtitleText.y, subtitleOGPosition.y - 100, 0.05);
 			subtitleText.text = "CLICK RAPIDLY!!!!";
+		}
+		if (FlxG.keys.justPressed.FIVE)
+		{
+			var washee = new FlxSprite().loadGraphic("assets/images/Mr._Washee_Washee.png");
+			washee.setPosition(player.x, player.y);
+			washee.scrollFactor.set();
+			add(washee);
 		}
 	}
 	public function handleFocusUpdates()
@@ -1091,7 +1161,7 @@ class PlayState extends FlxState
 		if (gameTime + 100 < 6500)
 			gameTime += 10 * ((combo * 5.5) / 2);
 		daFocusAmount += 75;
-		FlxG.camera.shake(0.01, 0.1);
+		camGame.shakeCamera(0.01, 0.1);
 		player._curJumpCount = 1;
 		player.maxVelocity.x += 1500;
 		player.velocity.x *= -1.25;
@@ -1100,15 +1170,185 @@ class PlayState extends FlxState
 		player.playerTrail.alpha = 1;
 		player.customColor.brightness = 0.45;
 		nextEnemySpawnTime -= 15;
+		enemiesKilled++;
+		enemy.angle = FlxG.random.int(-3, 3);
 		if (enemy != null)
 		{
 			camFollow.x += (camFollow.x - enemy.x) * 0.5;
 			camFollow.y += (camFollow.y - enemy.y) * 0.5;
 		}
-		FlxG.camera.zoom = 0.6;
-		FlxG.camera.angle = FlxG.random.int(-2, 2);
+		camGame.pulseZoom(0.6);
+		camGame.pulseRotate(FlxG.random.int(-2, 2));
 		combo++;
-		trace(combo);
+		trace(enemiesKilled + " || " + enemiesGonnaBeSpawned);
+
+		var effect = new ParticleEffect(player.getGraphicMidpoint().x + (player.flipX ? -400 : -125), player.getGraphicMidpoint().y - 200,
+			ParticleEffect.ParticleType.HIT);
+		effect.scale.set(0.75, 0.75);
+		effect.flipX = !player.flipX;
+		effect.updateHitbox();
+		effect.centerOffsets(true);
+		add(effect);
+
+		if (enemiesKilled >= enemiesGonnaBeSpawned - 1)
+		{
+			for (i in defenseEnemies)
+			{
+				if (i.ID == 2)
+				{
+					i.alpha = 1;
+					i.canMove = true;
+					i.speed = 25;
+				}
+			}
+		}
+
+		if (enemy.ID == 2)
+		{
+			inCutscene = true;
+			canSpawnEnemies = false;
+			camFollow.setPosition(player.getGraphicMidpoint().x, player.getGraphicMidpoint().y);
+			camGame.camZoom = 1;
+			new FlxTimer().start(0.25, function(tmr:FlxTimer)
+			{
+				defaultTimeScale = 1;
+				FlxTween.tween(blackFadeBox, {alpha: 1}, 1);
+				new FlxTimer().start(1, function(tmr:FlxTimer)
+				{
+					bgDim.alpha = 1;
+					camFollow.setPosition(player.getGraphicMidpoint().x, defenseMiddle.y + 200);
+					// camGame.setFollowLerp(1);
+					camGame.camZoom = 2;
+					new FlxTimer().start(2, function(tmr:FlxTimer)
+					{
+						FlxTween.tween(blackFadeBox, {alpha: 0}, 1.5);
+						player.y -= 700;
+						new FlxTimer().start(1.5, function(tmr:FlxTimer)
+						{
+							new FlxTimer().start(0.5, function(tmr:FlxTimer)
+							{
+								FlxTween.tween(bgDim, {alpha: 0}, 1);
+								camGame.setFollowLerp(0.075);
+								FlxTween.tween(uiBar, {alpha: 1}, 0.25);
+								FlxTween.tween(uiIcon, {alpha: 1}, 0.25);
+								FlxTween.tween(focusBar, {alpha: 1}, 0.25);
+								FlxTween.tween(focusBarBG, {alpha: 1}, 0.25);
+
+								FlxTween.tween(topBar, {y: topBar.y - 200}, 1, {ease: FlxEase.expoOut});
+								FlxTween.tween(bottomBar, {y: bottomBar.y + 200}, 1, {
+									ease: FlxEase.expoOut,
+									onComplete: function(twn:FlxTween)
+									{
+										FlxTween.cancelTweensOf(topBar);
+										FlxTween.cancelTweensOf(bottomBar);
+									}
+								});
+
+								inCutscene = false;
+								new FlxTimer().start(0.5, function(tmr:FlxTimer)
+								{
+									camGame.shakeCamera(0.01, 0.05);
+									camGame.camflash(FlxColor.RED, 0.5);
+									var newEnm = new DarkEnemy(FlxG.width * (FlxG.random.bool(50) ? -2 : 2), FlxG.height * -2, true);
+									newEnm.player = player;
+									defenseEnemies.add(newEnm);
+								});
+							});
+						});
+					});
+				});
+			});
+
+			for (i in defenseEnemies)
+			{
+				i.canMove = false;
+				FlxTween.tween(i, {
+					alpha: 0,
+					y: i.y + 200,
+					angle: (i.flipX ? 3 : -3),
+					x: (i.flipX) ? i.x + 100 : i.x - 100
+				}, 0.25, {
+					ease: FlxEase.expoIn,
+					onComplete: function(twn:FlxTween)
+					{
+						i.readyToDelete = true;
+					}
+				});
+				// i.brightnessReset = false;
+				// enemy.customColor.brightness = 0.4;
+			}
+
+			FlxTween.tween(uiBar, {alpha: 0}, 0.25);
+			FlxTween.tween(uiIcon, {alpha: 0}, 0.25);
+			FlxTween.tween(focusBar, {alpha: 0}, 0.25);
+			FlxTween.tween(focusBarBG, {alpha: 0}, 0.25);
+
+			FlxTween.tween(topBar, {y: topBar.y + 200}, 1, {ease: FlxEase.expoOut});
+			FlxTween.tween(bottomBar, {y: bottomBar.y - 200}, 1, {
+				ease: FlxEase.expoOut,
+				onComplete: function(twn:FlxTween)
+				{
+					FlxTween.cancelTweensOf(topBar);
+					FlxTween.cancelTweensOf(bottomBar);
+				}
+			});
+			defaultTimeScale = 0.25;
+		}
+
+		if (combo == 15)
+		{
+			inCutscene = true;
+			bgDim.alpha = 0.9;
+			player.brightnessReset = false;
+			player.customColor.brightness = 0.4;
+			defaultTimeScale = 0.25;
+			for (i in defenseEnemies)
+			{
+				if (i.x < player.x)
+					i.velocity.x = -250;
+				if (i.x > player.x)
+					i.velocity.x = 250;
+				if (i.y < player.y)
+					i.velocity.y = -250;
+				if (i.y > player.y)
+					i.velocity.y = 250;
+				i.canMove = false;
+				i.brightnessReset = false;
+				enemy.customColor.brightness = 0.4;
+			}
+			camGame.camZoom = 1;
+			camFollow.setPosition(enemy.getGraphicMidpoint().x, enemy.getGraphicMidpoint().y);
+			FlxTween.tween(topBar, {y: topBar.y + 200}, 0.25, {ease: FlxEase.expoOut});
+			FlxTween.tween(bottomBar, {y: bottomBar.y - 200}, 0.25, {
+				ease: FlxEase.expoOut,
+				onComplete: function(twn:FlxTween)
+				{
+					FlxTween.cancelTweensOf(topBar);
+					FlxTween.cancelTweensOf(bottomBar);
+				}
+			});
+			new FlxTimer().start(0.25, function(tmr:FlxTimer)
+			{
+				for (i in defenseEnemies)
+				{
+					i.brightnessReset = true;
+					i.canMove = true;
+				}
+				camGame.camZoom = 0.75;
+				defaultTimeScale = 1;
+				bgDim.alpha = 0;
+				player.brightnessReset = true;
+				player.customColor.brightness = 0;
+				enemy.customColor.brightness = 0;
+				inCutscene = false;
+				FlxTween.cancelTweensOf(topBar);
+				FlxTween.cancelTweensOf(bottomBar);
+				FlxTween.tween(topBar, {y: topBar.y - 200}, 0.25, {ease: FlxEase.expoIn});
+				FlxTween.tween(bottomBar, {y: bottomBar.y + 200}, 0.25, {
+					ease: FlxEase.expoIn
+				});
+			});
+		}
 
 		popupCombo();
 	}
@@ -1119,11 +1359,26 @@ class PlayState extends FlxState
 			startFinale();
 		if (gameTime + 100 < 6500)
 			gameTime += 10 * ((combo * 5.5) / 2);
-		FlxG.camera.shake(0.01, 0.1);
+		camGame.shakeCamera(0.01, 0.1);
 		player._curJumpCount = 1;
 		nextEnemySpawnTime -= 5;
-		FlxG.camera.zoom += 0.05;
-		FlxG.camera.angle = FlxG.random.int(-2, 2);
+		for (i in defenseEnemies)
+		{
+			if (i.isBoss)
+			{
+				// i.x += (player.flipX ? 300 : -300);
+				i.velocity.y = 0;
+				i.velocity.x = 0;
+				i.y = player.y;
+				i.x = (player.flipX ? player.x - 300 : player.x + 300);
+				i.velocity.x += (player.flipX ? -2000 : 2000);
+				// i.velocity.x *= 1.25;
+			}
+		}
+		player.velocity.y -= 2000;
+		defenseDeathTmr = 50;
+		camGame.pulseZoom(camGame.zoom + 0.05);
+		camGame.pulseRotate(FlxG.random.int(-2, 2));
 		combo++;
 		trace(combo);
 
@@ -1146,7 +1401,7 @@ class PlayState extends FlxState
 		{
 			FlxTween.tween(i, {alpha: 0}, 1);
 		}
-		cameraAngle = 5;
+		camGame.camAngle = 5;
 		if (FlxG.sound.music != null)
 			FlxG.sound.music.stop();
 
@@ -1167,7 +1422,7 @@ class PlayState extends FlxState
 	public function endFinale()
 	{
 		GameVariables.paused = true;
-		cameraAngle = 0;
+		camGame.camAngle = 0;
 		bgDim.alpha = 1;
 
 		defaultTimeScale = 0.45;
@@ -1222,7 +1477,7 @@ class PlayState extends FlxState
 					FlxG.sound.playMusic("assets/music/defenseslow.ogg", 0.5, true);
 				// FlxG.sound.music.time = curMusicTime * 2;
 				FlxG.sound.play("assets/sounds/slowMo.ogg", 0.75);
-				FlxG.camera.shake(0.01, 0.1);
+				camGame.shakeCamera(0.01, 0.1);
 				curMusicState = "slowed";
 			}
 		}
@@ -1236,7 +1491,7 @@ class PlayState extends FlxState
 				if (levelData.type == "defense")
 					FlxG.sound.playMusic("assets/music/defensenorm.ogg", 0.5, true);
 				FlxG.sound.play("assets/sounds/reSlowMo.ogg", 0.75);
-				FlxG.camera.shake(0.01, 0.1);
+				camGame.shakeCamera(0.01, 0.1);
 				curMusicState = "normal";
 			}
 		}
@@ -1272,12 +1527,13 @@ class PlayState extends FlxState
 			openingB.percent = 1;
 		FlxTween.tween(topBar, {y: topBar.y + 200}, 2, {ease: FlxEase.expoOut});
 		FlxTween.tween(bottomBar, {y: bottomBar.y - 200}, 2, {ease: FlxEase.expoOut});
-		FlxG.camera.shake(0.005, 0.25);
+		camGame.shakeCamera(0.005, 0.25);
 		gameSaturationValue = 2;
 		gameContrastValue = 2;
-		cameraAngle = 5;
+		camGame.camAngle = 5;
+		camGame.independent = true;
 		FlxTween.tween(FlxG.camera, {zoom: 0.8});
-		camHUD.flash(FlxColor.RED, 1);
+		camHUD.camflash(FlxColor.RED, 1);
 		new FlxTimer().start(2.1, function(tmr:FlxTimer)
 		{
 			FlxTween.tween(topBar, {y: topBar.y + 300}, 2, {ease: FlxEase.expoOut});

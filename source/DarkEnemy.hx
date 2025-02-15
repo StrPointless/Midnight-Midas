@@ -32,11 +32,18 @@ class DarkEnemy extends ModifiedFlxSprite
 
 	public var slowMoDead:Bool = false;
 	public var stunTimer:Int = 0;
+	public var canMove:Bool = true;
 
-	public function new(x:Float, y:Float, ?boss:Bool = false, ?player:Player)
+	private var justCanMove:Bool = true;
+
+	public var brightnessReset:Bool = true;
+	public var speedCap:Float;
+
+	public function new(x:Float, y:Float, ?boss:Bool = false, ?player:Player, ?fadeIn:Bool = true)
 	{
 		super(x, y);
-		speed = speed + FlxG.random.float(5, 11);
+		speedCap = FlxG.random.float(800, 1200);
+		speed = FlxG.random.float(100, 300);
 
 		spriteType = FlxG.random.int(0, 1);
 
@@ -62,13 +69,15 @@ class DarkEnemy extends ModifiedFlxSprite
 		animation.play("idle" + spriteType, true);
 		// makeGraphic(100, 100, FlxColor.CYAN);
 		alpha = 0;
-		FlxTween.tween(this, {alpha: 1}, 0.25);
+		if (fadeIn)
+			FlxTween.tween(this, {alpha: 1}, 0.25);
 		// trace(Math.atan2((player.y - y), (player.x - x)) * 100);
 	}
 
-
 	public override function update(elapsed:Float)
 	{
+		maxVelocity.x = FlxMath.lerp(maxVelocity.x, speedCap, 0.15);
+		maxVelocity.y = FlxMath.lerp(maxVelocity.y, speedCap, 0.15);
 		/*
 			if (!dead && stunTimer < 1)
 				angle = (flipX) ? (Math.atan2((player.getGraphicMidpoint().y - getGraphicMidpoint().y),
@@ -76,15 +85,26 @@ class DarkEnemy extends ModifiedFlxSprite
 						.x - getGraphicMidpoint().x)) * 100) : Math.atan2((player.getGraphicMidpoint().y - getGraphicMidpoint().y),
 						(player.getGraphicMidpoint().x - getGraphicMidpoint().x)) * 100
 		 */
-		if (player != null && !dead)
+		if (justCanMove != canMove)
+		{
+			if (canMove == false)
+			{
+				velocity.x = 0;
+				velocity.y = 0;
+			}
+		}
+		if (player != null && !dead && canMove)
 		{
 			if (stunTimer < 1)
 			{
 				if (player.x > x)
-					x += speed * FlxG.timeScale;
+					velocity.x += speed * FlxG.timeScale;
 				if (player.x < x)
-					x -= speed * FlxG.timeScale;
-				y = FlxMath.lerp(y, player.y, 0.005 * (speed / 2) * FlxG.timeScale);
+					velocity.x -= speed * FlxG.timeScale;
+				if (player.y > y)
+					velocity.y += (speed / 4) * FlxG.timeScale;
+				if (player.y < y)
+					velocity.y -= (speed / 4) * FlxG.timeScale;
 			}
 		}
 		if (stunTimer > 0)
@@ -110,9 +130,9 @@ class DarkEnemy extends ModifiedFlxSprite
 			else
 			{
 				player.onBossHurt();
-				stunTimer = 100;
+				// stunTimer = 100;
 			}
-			stunTmr = 30;
+			// stunTmr = 30;
 		}
 		if (stunTmr > 0)
 			stunTmr--;
@@ -147,8 +167,10 @@ class DarkEnemy extends ModifiedFlxSprite
 		}
 		customColor.contrast = FlxMath.lerp(customColor.contrast, 1.55, 0.09);
 		customColor.saturation = FlxMath.lerp(customColor.saturation, 1.55, 0.09);
-		customColor.brightness = FlxMath.lerp(customColor.brightness, 0, 0.09);
+		if (brightnessReset)
+			customColor.brightness = FlxMath.lerp(customColor.brightness, 0, 0.09);
 
+		angle = FlxMath.lerp(angle, 0, 0.05);
 		super.update(elapsed);
 	}
 

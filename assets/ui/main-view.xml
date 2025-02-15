@@ -16,5 +16,8 @@
         <menu text="View">
             
         </menu>
+        <menu text="Testing">
+            <menuitem text="Test Level" id="testLevelBttn"/>
+        </menu>
     </menubar>
 </vbox>

@@ -6,11 +6,13 @@ import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
 import flixel.util.FlxColor;
 import flixel.util.FlxDirectionFlags;
+import json2object.JsonParser;
 import openfl.Assets;
 import sys.io.File;
 
 class Player extends ModifiedFlxSprite
 {
+	public var _sprintCap:Float = 900;
 	public var _sprintSpeed:Float = 200;
 	public var _normalSpeed:Float = 150;
 	public var _curSpeed:Float = 250;
@@ -49,6 +51,9 @@ class Player extends ModifiedFlxSprite
 	public var characterOffsets:Map<String, Array<Float>>;
 
 	public var playerTrail:FlxTrail;
+	public var subComboCounter:Float = 0;
+
+	var mappedoffsets:Map<String, Array<Float>>;
 
 	public function new(_x:Float, _y:Float)
 	{
@@ -71,6 +76,9 @@ class Player extends ModifiedFlxSprite
 		animation.addByPrefix("attack0Air", "attack1Air0", 24, false);
 		animation.addByPrefix("attack1Air", "attack2Air0", 24, false);
 		animation.addByPrefix("death", "death", 24, true);
+		animation.addByPrefix("lockin", "lockin", 24, true);
+		animation.addByPrefix("shit", "shit", 24, true);
+		animation.addByPrefix("confused", "confused", 24, true);
 		animation.play("idle");
 
 		// centerOffsets(true);
@@ -90,6 +98,9 @@ class Player extends ModifiedFlxSprite
 		playerTrail = new FlxTrail(this, null, 4, 3, 0.75, 0.05);
 		playerTrail.blend = ADD;
 		playerTrail.color = 0x6AE1FF;
+		var parser = new JsonParser<Map<String, Array<Float>>>();
+		parser.fromJson(File.getContent("assets/images/playerOffsets.json"));
+		mappedoffsets = parser.value;
 	}
 
 	public function addPlayerTrial()
@@ -111,9 +122,13 @@ class Player extends ModifiedFlxSprite
 
 	public var killBoostModifier:Float = 1;
 	public var isDebug:Bool = false;
+	public var brightnessReset:Bool = true;
+	public var handleUpdateAnimations:Bool = true;
 	override function update(elapsed:Float)
 	{
 		super.update(elapsed);
+		if (subComboCounter >= 1)
+			subComboCounter--;
 		if (playerTrail != null)
 		{
 			playerTrail.alpha = FlxMath.lerp(playerTrail.alpha, 0, 0.02);
@@ -209,11 +224,13 @@ class Player extends ModifiedFlxSprite
 				// FlxG.watch.addQuick('cur Animation', animation.curAnim.name);
 				_drag = _curSpeed * 15;
 				drag.x = _drag;
-				maxVelocity.x = FlxMath.lerp(maxVelocity.x, 700, 0.15);
+				maxVelocity.x = FlxMath.lerp(maxVelocity.x, (_isSprinting) ? _sprintCap : 700, 0.15);
 
-				customColor.brightness = FlxMath.lerp(customColor.brightness, 0, 0.09);
+				if (brightnessReset)
+					customColor.brightness = FlxMath.lerp(customColor.brightness, 0, 0.09);
 				
 				// trace(offset);
+				// trace(flipX);
 
 				if (_isSprinting)
 				{
@@ -251,6 +268,11 @@ class Player extends ModifiedFlxSprite
 						case 0:
 							FlxG.sound.play("assets/sounds/jumpSfx.ogg", 0.25);
 					}
+					var effect = new ParticleEffect(this.x, this.y, ParticleEffect.ParticleType.JUMP);
+					effect.scale.set(0.5, 0.7);
+					effect.x -= 300;
+					effect.y += 25;
+					FlxG.state.add(effect);
 					if (_defWallSliding)
 						_wallJumping = true;
 				}
@@ -358,55 +380,58 @@ class Player extends ModifiedFlxSprite
 	}
 	public function updateAnimations()
 	{
-		if (!left && !right && _isGrounded && !_preppingAttack && !attacking)
+		if (handleUpdateAnimations)
 		{
-			animation.play("idle");
-			attacking = false;
+			if (!left && !right && _isGrounded && !_preppingAttack && !attacking)
+			{
+				animation.play("idle");
+				attacking = false;
+			}
+			if (!left && !right && _isGrounded && _preppingAttack)
+			{
+				animation.play("prepAttack");
+				attacking = false;
+			}
+			if (left && _isGrounded || right && _isGrounded && !attacking)
+			{
+				if (_isSprinting)
+					animation.play("run");
+				else
+					animation.play("walk");
+				attacking = false;
+			}
+			if (_isGrounded && velocity.y < 0 && !_preppingAttack && !attacking)
+			{
+				animation.play("jump", false);
+				attacking = false;
+			}
+			if (!_isGrounded && velocity.y > 0 && !_preppingAttack && !attacking)
+			{
+				animation.play("fall");
+				attacking = false;
+			}
+			if (jumped && !_isGrounded && velocity.y < 0 && !_preppingAttack && _curJumpCount == 0)
+			{
+				animation.play("dblJump", false);
+				attacking = false;
+			}
+			if (!_isGrounded && _preppingAttack)
+			{
+				animation.play("prepAttackAir");
+				attacking = false;
+			}
+			if (animation.curAnim.name == "attack0"
+				&& animation.curAnim.finished
+				|| animation.curAnim.name == "attack1"
+				&& animation.curAnim.finished
+				|| animation.curAnim.name == "attack0Air"
+				&& animation.curAnim.finished
+				|| animation.curAnim.name == "attack1Air"
+				&& animation.curAnim.finished)
+				attacking = false;
+			if (animation.curAnim.name == "attack0Air" && _isGrounded || animation.curAnim.name == "attack1Air" && _isGrounded)
+				attacking = false;
 		}
-		if (!left && !right && _isGrounded && _preppingAttack)
-		{
-			animation.play("prepAttack");
-			attacking = false;
-		}
-		if (left && _isGrounded || right && _isGrounded && !attacking)
-		{
-			if (_isSprinting)
-				animation.play("run");
-			else
-				animation.play("walk");
-			attacking = false;
-		}
-		if (_isGrounded && velocity.y < 0 && !_preppingAttack && !attacking)
-		{
-			animation.play("jump", false);
-			attacking = false;
-		}
-		if (!_isGrounded && velocity.y > 0 && !_preppingAttack && !attacking)
-		{
-			animation.play("fall");
-			attacking = false;
-		}
-		if (jumped && !_isGrounded && velocity.y < 0 && !_preppingAttack && _curJumpCount == 0)
-		{
-			animation.play("dblJump", false);
-			attacking = false;
-		}
-		if (!_isGrounded && _preppingAttack)
-		{
-			animation.play("prepAttackAir");
-			attacking = false;
-		}
-		if (animation.curAnim.name == "attack0"
-			&& animation.curAnim.finished
-			|| animation.curAnim.name == "attack1"
-			&& animation.curAnim.finished
-			|| animation.curAnim.name == "attack0Air"
-			&& animation.curAnim.finished
-			|| animation.curAnim.name == "attack1Air"
-			&& animation.curAnim.finished)
-			attacking = false;
-		if (animation.curAnim.name == "attack0Air" && _isGrounded || animation.curAnim.name == "attack1Air" && _isGrounded)
-			attacking = false;
 	}
 
 	public function playAnim() {

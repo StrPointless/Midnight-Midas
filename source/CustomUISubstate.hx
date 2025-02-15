@@ -34,6 +34,10 @@ class CustomUISubstate extends FlxSubState
 		{
 			levelEditorState.exitEditor();
 		}
+		mainView.testLevelBttn.onClick = function(e)
+		{
+			levelEditorState.testLevel();
+		}
 		Screen.instance.addComponent(mainView);
 
 		objectDataView = new ObjectDataView();
@@ -55,6 +59,11 @@ class CustomUISubstate extends FlxSubState
 		objectDataView.zOrderStepper.onChange = function(e)
 		{
 			levelEditorState.setZLevel(e.value);
+		}
+		objectDataView.hiddenCheck.onChange = function(e)
+		{
+			levelEditorState.hiddenLayerArray[levelEditorState.zLevel] = e.value;
+			levelEditorState.setZLevel(levelEditorState.zLevel);
 		}
 
 		objectDataView.curModeDisplay.text = "Cur Mode: " + levelEditorState.curMode;

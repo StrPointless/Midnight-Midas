@@ -474,13 +474,13 @@ class SettingsState extends BaseMenuState
 							GameVariables.setControlType(KeyboardMouse);
 					}
 				case "speedrunMode":
-					switch (i.value)
-					{
-						case true:
-							GameVariables.settings.speedrunMode = true;
-						case false:
-							GameVariables.settings.speedrunMode = false;
-					}
+					GameVariables.settings.speedrunMode = i.value;
+				case "noFlashing":
+					GameVariables.settings.gp_flashingLights = i.value;
+				case "staticCam":
+					GameVariables.settings.gp_staticCamera = i.value;
+				case "skipMenus":
+					GameVariables.settings.gp_skipMenus = i.value;
 			}
 		}
 	}
@@ -529,6 +529,12 @@ class SettingsState extends BaseMenuState
 	public function createGameplayPage()
 	{
 		var page = new SettingsPage();
+		page.optionSize = 28;
+		page.optionSpacing = 50;
+		page.addBoolMenuItem("Flashing Lights", GameVariables.settings.gp_flashingLights, "flashing");
+		page.addBoolMenuItem("Static Camera", GameVariables.settings.gp_staticCamera, "staticCam");
+		page.addBoolMenuItem("Skip Menus", GameVariables.settings.gp_skipMenus, "skipMenus");
+		
 		page.addOneshotMenuItem("Back", function(dymamo:Dynamic)
 		{
 			changePage("main");
@@ -537,6 +543,7 @@ class SettingsState extends BaseMenuState
 		{
 			updateTexts(page);
 		}
+
 
 		return page;
 	}
@@ -758,5 +765,9 @@ class SettingsPage
 	public function getCurObjectType(curSelected:Int)
 	{
 		return options[curSelected].type;
+	}
+	public static function changeBoolValue(variable:Bool, dynamicValue:Bool)
+	{
+		variable = dynamicValue;
 	}
 }
